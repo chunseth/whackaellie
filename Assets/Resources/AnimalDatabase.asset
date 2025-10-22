@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ab136011e6594d479a1521952b0ef2c, type: 3}
+  m_Name: AnimalDatabase
+  m_EditorClassIdentifier: 
+  animals:
+  - animalType: 0
+    animalName: Rabbit
+    normalSprite: {fileID: 5110612511535974256, guid: daa5be28c97d94de5b10120097f480f3, type: 3}
+    hitSprite: {fileID: 5363364115609787874, guid: 513cf958608904228ab5494d58352afd, type: 3}
+    hitSoundEffects:
+    - {fileID: 8300000, guid: 7c9e3ea1a2d0f45d9ae5e9d39dbf1508, type: 3}
+    pointValue: 5
+    visibleDuration: 1.2
+  - animalType: 1
+    animalName: Meerkat
+    normalSprite: {fileID: 7565669015022213457, guid: f347f3fa25e3f49b0909da5a69717133, type: 3}
+    hitSprite: {fileID: -3359827283072306455, guid: 7868c126009f445ab8ff06601effb6c0, type: 3}
+    hitSoundEffects:
+    - {fileID: 8300000, guid: 7c9e3ea1a2d0f45d9ae5e9d39dbf1508, type: 3}
+    pointValue: 10
+    visibleDuration: 1
+  - animalType: 2
+    animalName: Fox
+    normalSprite: {fileID: 1791904589581890566, guid: 9e033c3dbdfd64f4ea354e76bc366a17, type: 3}
+    hitSprite: {fileID: 8670920890778197599, guid: f0b80c77e868e43edbcacd677b7cc8cc, type: 3}
+    hitSoundEffects:
+    - {fileID: 8300000, guid: 5d99e8de229144120a834dd82783e2bb, type: 3}
+    pointValue: 15
+    visibleDuration: 0.7
+  - animalType: 3
+    animalName: Badger
+    normalSprite: {fileID: -4608897844343487102, guid: ea56235931be54ff1892bf260712c523, type: 3}
+    hitSprite: {fileID: 5448238164295758846, guid: 7b21b27ff47ce4472aef26046338f98b, type: 3}
+    hitSoundEffects:
+    - {fileID: 8300000, guid: 4558eb234a1fd43c0ac4c6fadf8c1ac4, type: 3}
+    pointValue: 25
+    visibleDuration: 0.4
+  - animalType: 4
+    animalName: Snake
+    normalSprite: {fileID: -7766637424382265647, guid: 62b3659b975ec450d90ffd0b4fe04db2, type: 3}
+    hitSprite: {fileID: 6601336057332833083, guid: e9d9c5f07664a42a7bf4a754e7cabd0b, type: 3}
+    hitSoundEffects:
+    - {fileID: 8300000, guid: f5070ab609b374e51a5a9d90c4a7e62b, type: 3}
+    pointValue: -35
+    visibleDuration: 2.5
