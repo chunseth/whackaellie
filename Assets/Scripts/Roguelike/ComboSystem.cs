@@ -15,6 +15,7 @@ public class ComboSystem : MonoBehaviour
     [Header("Combo Settings (from upgrades)")]
     private int hitsToTriggerCombo = 3;      // Number of hits needed to trigger combo
     private float comboMultiplier = 2.0f;    // Multiplier applied when combo triggers
+    private bool hasComboMissShield = false; // If true, miss reduces combo by 1 instead of resetting
     
     // Events
     public event Action<int> OnComboChanged;  // Fires when combo count changes
@@ -37,7 +38,10 @@ public class ComboSystem : MonoBehaviour
     public void Initialize(PlayerUpgrades upgrades)
     {
         hitsToTriggerCombo = upgrades.comboHitsToStart;
-        comboMultiplier = upgrades.comboMultiplierIncrement;
+        
+        // Apply base multiplier + any accumulated interest
+        comboMultiplier = upgrades.comboMultiplierIncrement + upgrades.comboInterestAccumulated;
+        hasComboMissShield = upgrades.hasComboMissShield;
         
         ResetCombo();
     }
@@ -83,8 +87,33 @@ public class ComboSystem : MonoBehaviour
     /// </summary>
     public void OnAnimalMissed()
     {
-        Debug.Log($"[Combo] Miss! Lost {accumulatedPoints} accumulated points (was at {currentComboCount}/{hitsToTriggerCombo})");
-        ResetCombo();
+        if (hasComboMissShield && currentComboCount > 0)
+        {
+            // With shield: reduce combo by 1 instead of resetting
+            currentComboCount = Mathf.Max(0, currentComboCount - 1);
+            
+            // Recalculate accumulated points (lose 1 hit worth of points)
+            // This is an approximation - we lose roughly the average point value
+            if (currentComboCount > 0 && accumulatedPoints > 0)
+            {
+                // Lose points proportionally
+                int pointsPerHit = accumulatedPoints / (currentComboCount + 1); // +1 because we just reduced count
+                accumulatedPoints = Mathf.Max(0, accumulatedPoints - pointsPerHit);
+            }
+            else
+            {
+                accumulatedPoints = 0;
+            }
+            
+            Debug.Log($"[Combo] Miss! Shield activated: -1 combo ({currentComboCount}/{hitsToTriggerCombo}, {accumulatedPoints}pts remaining)");
+            OnComboChanged?.Invoke(currentComboCount);
+        }
+        else
+        {
+            // No shield or combo already at 0: reset completely
+            Debug.Log($"[Combo] Miss! Lost {accumulatedPoints} accumulated points (was at {currentComboCount}/{hitsToTriggerCombo})");
+            ResetCombo();
+        }
     }
     
     /// <summary>

@@ -29,6 +29,12 @@ public class RoguelikeManager : MonoBehaviour
     [SerializeField] private GameObject shopPanel;
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private TextMeshProUGUI gameOverMessageText;
+    [SerializeField] private GameObject pausePanel;
+    [SerializeField] private Button pauseButton;
+    
+    [Header("Pause Panel Upgrade Display")]
+    [SerializeField] private Transform[] pauseUpgradeSlots = new Transform[10]; // UpgradeImage1-10
+    [SerializeField] private UpgradeDatabase upgradeDatabase;
     
     [Header("Floating Text")]
     [SerializeField] private GameObject comboTextPrefab;
@@ -41,16 +47,26 @@ public class RoguelikeManager : MonoBehaviour
     [SerializeField] private int combosThisWave = 0;  // Track combos completed this wave
     [SerializeField] private float timeRemaining = 0f;
     [SerializeField] private bool isWaveActive = false;
+    [SerializeField] private bool isPaused = false;
     
     [Header("Player Upgrades")]
     [SerializeField] private PlayerUpgrades playerUpgrades;
     private PlayerUpgrades initialUpgrades;  // Store initial Inspector values
     
     [Header("Wave Configuration - Round 1")]
-    [SerializeField] private int[] round1WaveTargets = new int[] { 40, 100, 200, 350, 550 };  // Wave 1-5
+    [SerializeField] private int[] round1WaveTargets = new int[] { 40, 100, 200 };  // Wave 1-3: Rabbits only
     
     [Header("Wave Configuration - Round 2")]
-    [SerializeField] private int[] round2WaveTargets = new int[] { 650, 900, 1250 };  // Wave 1-3
+    [SerializeField] private int[] round2WaveTargets = new int[] { 350, 550, 750 };  // Wave 1-3: Rabbit→Meerkat conversion
+    
+    [Header("Wave Configuration - Round 3")]
+    [SerializeField] private int[] round3WaveTargets = new int[] { 1000, 1300, 1650 };  // Wave 1-3
+    
+    [Header("Wave Configuration - Round 4")]
+    [SerializeField] private int[] round4WaveTargets = new int[] { 2050, 2500, 3000 };  // Wave 1-3
+    
+    [Header("Wave Configuration - Round 5")]
+    [SerializeField] private int[] round5WaveTargets = new int[] { 3600, 4300, 5100 };  // Wave 1-3: Final round!
     
     [Header("Economy")]
     [SerializeField] private int goldPerCombo = 2;  // Gold earned per combo completed
@@ -86,11 +102,14 @@ public class RoguelikeManager : MonoBehaviour
         // Store initial Inspector values
         if (playerUpgrades != null)
         {
+            // Set gold per combo from Inspector value
+            playerUpgrades.goldPerCombo = goldPerCombo;
             initialUpgrades = playerUpgrades.Clone();
         }
         else
         {
             playerUpgrades = new PlayerUpgrades();
+            playerUpgrades.goldPerCombo = goldPerCombo;
             initialUpgrades = playerUpgrades.Clone();
         }
         
@@ -129,7 +148,8 @@ public class RoguelikeManager : MonoBehaviour
     
     private void Update()
     {
-        if (isWaveActive)
+        // Don't update game logic if paused
+        if (isWaveActive && !isPaused)
         {
             // Update timer
             timeRemaining -= Time.deltaTime;
@@ -173,6 +193,17 @@ public class RoguelikeManager : MonoBehaviour
             countdownPanel.SetActive(false);
         }
         
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(false);
+        }
+        
+        // Show pause button if assigned
+        if (pauseButton != null)
+        {
+            pauseButton.gameObject.SetActive(false);
+        }
+        
         UpdateUI();
     }
     
@@ -184,6 +215,8 @@ public class RoguelikeManager : MonoBehaviour
         currentRound = 1;
         currentWave = 1;
         currentScore = 0;
+        isPaused = false;
+        Time.timeScale = 1f;
         
         // Reset upgrades to initial Inspector values
         if (initialUpgrades != null)
@@ -200,6 +233,12 @@ public class RoguelikeManager : MonoBehaviour
         if (startPanel != null)
         {
             startPanel.SetActive(false);
+        }
+        
+        // Show pause button when game starts
+        if (pauseButton != null)
+        {
+            pauseButton.gameObject.SetActive(true);
         }
         
         StartWave();
@@ -223,6 +262,12 @@ public class RoguelikeManager : MonoBehaviour
         currentScore = 0;
         combosThisWave = 0;  // Reset combo counter
         timeRemaining = currentWaveData.duration;
+        
+        // Reset combo interest accumulation for new wave
+        if (playerUpgrades != null)
+        {
+            playerUpgrades.comboInterestAccumulated = 0f;
+        }
         
         UpdateUI();
         
@@ -292,26 +337,26 @@ public class RoguelikeManager : MonoBehaviour
         // Configure based on round
         if (round == 1)
         {
-            // Round 1: 5 waves total
+            // Round 1: 3 waves total - Rabbits only (tutorial round)
             if (wave > 0 && wave <= round1WaveTargets.Length)
             {
                 data.pointTarget = round1WaveTargets[wave - 1];
             }
             else
             {
-                data.pointTarget = round1WaveTargets[round1WaveTargets.Length - 1] + ((wave - round1WaveTargets.Length) * 250);
+                data.pointTarget = round1WaveTargets[round1WaveTargets.Length - 1] + ((wave - round1WaveTargets.Length) * 100);
             }
             
-            // Round 1 animals: Rabbits only, wave 5 adds snakes
+            // Round 1 animals: Rabbits only, wave 3 adds snakes
             data.allowedAnimals.Add(AnimalType.Rabbit);
-            if (wave == 5)
+            if (wave == 3)
             {
                 data.allowedAnimals.Add(AnimalType.Snake);
             }
         }
         else if (round == 2)
         {
-            // Round 2: 3 waves total
+            // Round 2: 3 waves total - Rabbit→Meerkat conversion available
             if (wave > 0 && wave <= round2WaveTargets.Length)
             {
                 data.pointTarget = round2WaveTargets[wave - 1];
@@ -321,29 +366,65 @@ public class RoguelikeManager : MonoBehaviour
                 data.pointTarget = round2WaveTargets[round2WaveTargets.Length - 1] + ((wave - round2WaveTargets.Length) * 250);
             }
             
-            // Round 2 animals: Rabbits + Meerkats, no snakes
+            // Round 2 animals: Just rabbits by default (meerkats spawn via upgrade)
             data.allowedAnimals.Add(AnimalType.Rabbit);
-            data.allowedAnimals.Add(AnimalType.Meerkat);
             
-            // Wave-specific caps and spawn probabilities
-            if (wave == 1)
+            // Waves 2 and 3 add snakes
+            if (wave == 2 || wave == 3)
             {
-                data.maxRabbits = 7;
-                data.maxMeerkats = 3;
-                data.meerkatSpawnChance = 0.3f;  // 30% meerkats, 70% rabbits
+                data.allowedAnimals.Add(AnimalType.Snake);
             }
-            else if (wave == 2)
+            
+            // Note: Individual animal caps removed - using total maxActiveAnimals instead
+            // The rabbitToMeerkatConversion upgrade determines the ratio naturally
+        }
+        else if (round == 3)
+        {
+            // Round 3: 3 waves total - Higher difficulty
+            if (wave > 0 && wave <= round3WaveTargets.Length)
             {
-                data.maxRabbits = 5;
-                data.maxMeerkats = 4;
-                data.meerkatSpawnChance = 0.45f; // 45% meerkats, 55% rabbits
+                data.pointTarget = round3WaveTargets[wave - 1];
             }
-            else if (wave == 3)
+            else
             {
-                data.maxRabbits = 4;
-                data.maxMeerkats = 5;
-                data.meerkatSpawnChance = 0.65f; // 65% meerkats, 35% rabbits
+                data.pointTarget = round3WaveTargets[round3WaveTargets.Length - 1] + ((wave - round3WaveTargets.Length) * 400);
             }
+            
+            // Round 3 animals: Rabbits + snakes + optional meerkats via upgrade
+            data.allowedAnimals.Add(AnimalType.Rabbit);
+            data.allowedAnimals.Add(AnimalType.Snake);
+        }
+        else if (round == 4)
+        {
+            // Round 4: 3 waves total - Expert difficulty
+            if (wave > 0 && wave <= round4WaveTargets.Length)
+            {
+                data.pointTarget = round4WaveTargets[wave - 1];
+            }
+            else
+            {
+                data.pointTarget = round4WaveTargets[round4WaveTargets.Length - 1] + ((wave - round4WaveTargets.Length) * 550);
+            }
+            
+            // Round 4 animals: Rabbits + snakes + optional meerkats via upgrade
+            data.allowedAnimals.Add(AnimalType.Rabbit);
+            data.allowedAnimals.Add(AnimalType.Snake);
+        }
+        else if (round == 5)
+        {
+            // Round 5: 3 waves total - Final challenge!
+            if (wave > 0 && wave <= round5WaveTargets.Length)
+            {
+                data.pointTarget = round5WaveTargets[wave - 1];
+            }
+            else
+            {
+                data.pointTarget = round5WaveTargets[round5WaveTargets.Length - 1] + ((wave - round5WaveTargets.Length) * 750);
+            }
+            
+            // Round 5 animals: Rabbits + snakes + optional meerkats via upgrade
+            data.allowedAnimals.Add(AnimalType.Rabbit);
+            data.allowedAnimals.Add(AnimalType.Snake);
         }
         
         return data;
@@ -366,7 +447,7 @@ public class RoguelikeManager : MonoBehaviour
     /// <summary>
     /// Called when an animal is hit (called by MoleController)
     /// </summary>
-    public void OnAnimalHit(AnimalType animalType, RectTransform animalRectTransform)
+    public void OnAnimalHit(AnimalType animalType, RectTransform animalRectTransform, bool isPerfectHit = false)
     {
         Debug.Log($"[Roguelike] OnAnimalHit called! Animal: {animalType}, WaveActive: {isWaveActive}");
         
@@ -378,7 +459,40 @@ public class RoguelikeManager : MonoBehaviour
         
         // Get base points for this animal
         int basePoints = GetAnimalPoints(animalType);
-        Debug.Log($"[Roguelike] Base points for {animalType}: {basePoints}");
+        
+        // Check for critical hit
+        bool isCriticalHit = false;
+        if (playerUpgrades.critChance > 0f && basePoints > 0)
+        {
+            float critRoll = Random.value;
+            if (critRoll < playerUpgrades.critChance)
+            {
+                isCriticalHit = true;
+                basePoints = basePoints * 2; // Critical hit: 2x points
+                Debug.Log($"[Roguelike] CRITICAL HIT! {animalType}: {basePoints}pts (2x)");
+            }
+        }
+        
+        // Apply perfect hit bonus if applicable (stacks multiplicatively with crit)
+        if (isPerfectHit && playerUpgrades.perfectHitMultiplier > 1.0f && basePoints > 0)
+        {
+            int pointsBeforePerfect = basePoints;
+            basePoints = Mathf.RoundToInt(basePoints * playerUpgrades.perfectHitMultiplier);
+            
+            if (isCriticalHit)
+            {
+                float totalMultiplier = 2.0f * playerUpgrades.perfectHitMultiplier;
+                Debug.Log($"[Roguelike] CRITICAL + PERFECT HIT! {animalType}: {basePoints}pts ({totalMultiplier:F1}x total!)");
+            }
+            else
+            {
+                Debug.Log($"[Roguelike] PERFECT HIT! {animalType}: {basePoints}pts ({playerUpgrades.perfectHitMultiplier:F1}x bonus)");
+            }
+        }
+        else if (!isCriticalHit)
+        {
+            Debug.Log($"[Roguelike] Base points for {animalType}: {basePoints}");
+        }
         
         // Check if this is a snake (penalty)
         if (basePoints < 0)
@@ -411,11 +525,33 @@ public class RoguelikeManager : MonoBehaviour
             // Check if combo was triggered
             if (bonus > 0)
             {
-                // Combo triggered! Award gold
+                // Combo triggered! Award gold with fractional accumulation
                 combosThisWave++;
-                playerUpgrades.currentGold += goldPerCombo;
+                int goldAwarded = playerUpgrades.AwardGold(playerUpgrades.goldPerCombo);
                 
-                Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldPerCombo} gold | Total: {currentScore} / {currentWaveData.pointTarget}");
+                // Add time to wave if upgrade purchased
+                if (playerUpgrades.timeAddedPerCombo > 0f)
+                {
+                    timeRemaining += playerUpgrades.timeAddedPerCombo;
+                }
+                
+                // Increase combo multiplier for future combos if interest upgrade purchased
+                if (playerUpgrades.comboInterestRate > 0f)
+                {
+                    playerUpgrades.comboInterestAccumulated += playerUpgrades.comboInterestRate;
+                    comboSystem.Initialize(playerUpgrades); // Refresh combo system with new multiplier
+                    
+                    float currentMultiplier = playerUpgrades.comboMultiplierIncrement + playerUpgrades.comboInterestAccumulated;
+                    Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldAwarded} gold | Multiplier grew to {currentMultiplier:F2}x!");
+                }
+                else if (playerUpgrades.timeAddedPerCombo > 0f)
+                {
+                    Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldAwarded} gold, +{playerUpgrades.timeAddedPerCombo:F1}s time | Total: {currentScore} / {currentWaveData.pointTarget}");
+                }
+                else
+                {
+                    Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldAwarded} gold (${playerUpgrades.goldPerCombo:F1}/combo) | Total: {currentScore} / {currentWaveData.pointTarget}");
+                }
             }
             else
             {
@@ -543,6 +679,10 @@ public class RoguelikeManager : MonoBehaviour
                 return playerUpgrades.basePointsPerRabbit;
             case AnimalType.Meerkat:
                 return playerUpgrades.basePointsPerMeerkat;
+            case AnimalType.Fox:
+                return playerUpgrades.basePointsPerFox;
+            case AnimalType.Badger:
+                return playerUpgrades.basePointsPerBadger;
             case AnimalType.Snake:
                 return -10; // Penalty for hitting snake
             default:
@@ -573,10 +713,10 @@ public class RoguelikeManager : MonoBehaviour
         {
             Debug.Log($"[Roguelike] Wave {currentWave} complete! Score: {currentScore}/{currentWaveData.pointTarget}");
             
-            // Gold was already awarded per combo during wave
-            int goldEarned = combosThisWave * goldPerCombo;
+            // Calculate total gold earned this wave (gold was awarded per combo during wave)
+            int goldEarned = Mathf.FloorToInt(combosThisWave * playerUpgrades.goldPerCombo);
             
-            Debug.Log($"[Roguelike] Completed {combosThisWave} combos = ${goldEarned} gold! Total: ${playerUpgrades.currentGold}");
+            Debug.Log($"[Roguelike] Completed {combosThisWave} combos @ ${playerUpgrades.goldPerCombo:F1}/combo = ${goldEarned} gold! Total: ${playerUpgrades.currentGold} (fractional: ${playerUpgrades.fractionalGold:F2})");
             
             // Show reward panel before shop
             ShowRewardPanel(goldEarned, combosThisWave);
@@ -625,18 +765,20 @@ public class RoguelikeManager : MonoBehaviour
         // Advance wave
         currentWave++;
         
-        // Check if we've completed all waves in this round
-        if (currentRound == 1 && currentWave > 5)
+        // Check if we've completed all waves in this round (3 waves per round)
+        if (currentWave > 3)
         {
-            // Advance to Round 2
-            currentRound = 2;
+            // Advance to next round
+            currentRound++;
             currentWave = 1;
-        }
-        else if (currentRound == 2 && currentWave > 3)
-        {
-            // Round 2 complete - victory!
-            ShowVictory();
-            return;
+            
+            // Check if we've completed all 5 rounds
+            if (currentRound > 5)
+            {
+                // All rounds complete - victory!
+                ShowVictory();
+                return;
+            }
         }
         
         ShowShop();
@@ -650,6 +792,23 @@ public class RoguelikeManager : MonoBehaviour
         if (shopPanel != null)
         {
             shopPanel.SetActive(true);
+        }
+        
+        // Hide score and timer text while shop is open
+        if (scoreText != null)
+        {
+            scoreText.gameObject.SetActive(false);
+        }
+        
+        if (timerText != null)
+        {
+            timerText.gameObject.SetActive(false);
+        }
+        
+        // Hide pause button while in shop
+        if (pauseButton != null)
+        {
+            pauseButton.gameObject.SetActive(false);
         }
         
         Debug.Log($"[Roguelike] Shop opened! Gold: ${playerUpgrades.currentGold}");
@@ -676,6 +835,23 @@ public class RoguelikeManager : MonoBehaviour
             shopPanel.SetActive(false);
         }
         
+        // Show score and timer text again
+        if (scoreText != null)
+        {
+            scoreText.gameObject.SetActive(true);
+        }
+        
+        if (timerText != null)
+        {
+            timerText.gameObject.SetActive(true);
+        }
+        
+        // Show pause button again when returning to gameplay
+        if (pauseButton != null)
+        {
+            pauseButton.gameObject.SetActive(true);
+        }
+        
         StartWave();
     }
     
@@ -684,6 +860,16 @@ public class RoguelikeManager : MonoBehaviour
     /// </summary>
     private void ShowVictory()
     {
+        // Hide pause button on victory
+        if (pauseButton != null)
+        {
+            pauseButton.gameObject.SetActive(false);
+        }
+        
+        // Make sure time scale is normal
+        Time.timeScale = 1f;
+        isPaused = false;
+        
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);
@@ -691,7 +877,7 @@ public class RoguelikeManager : MonoBehaviour
         
         if (gameOverMessageText != null)
         {
-            gameOverMessageText.text = $"Round {currentRound} Complete!\n\nTotal Gold: ${playerUpgrades.currentGold}";
+            gameOverMessageText.text = $"VICTORY!\n\nAll 5 Rounds Complete!\n\nTotal Gold: ${playerUpgrades.currentGold}";
         }
     }
     
@@ -700,6 +886,16 @@ public class RoguelikeManager : MonoBehaviour
     /// </summary>
     private void ShowGameOver(bool victory)
     {
+        // Hide pause button on game over
+        if (pauseButton != null)
+        {
+            pauseButton.gameObject.SetActive(false);
+        }
+        
+        // Make sure time scale is normal
+        Time.timeScale = 1f;
+        isPaused = false;
+        
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);
@@ -882,6 +1078,31 @@ public class RoguelikeManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Get current wave number (1-based) within the round
+    /// </summary>
+    public int GetCurrentWaveNumber()
+    {
+        return currentWave;
+    }
+    
+    /// <summary>
+    /// Get current round number (1-based)
+    /// </summary>
+    public int GetCurrentRound()
+    {
+        return currentRound;
+    }
+    
+    /// <summary>
+    /// Get absolute wave number across all rounds (1-based)
+    /// Round 1 Wave 1 = 1, Round 1 Wave 3 = 3, Round 2 Wave 1 = 4, etc.
+    /// </summary>
+    public int GetAbsoluteWaveNumber()
+    {
+        return ((currentRound - 1) * 3) + currentWave;
+    }
+    
+    /// <summary>
     /// Check if wave is currently active (for MoleController to check if clicks are allowed)
     /// </summary>
     public bool IsWaveActive()
@@ -900,10 +1121,139 @@ public class RoguelikeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Return to main menu
+    /// Pause the game
+    /// </summary>
+    public void PauseGame()
+    {
+        if (!isPaused && isWaveActive)
+        {
+            isPaused = true;
+            Time.timeScale = 0f;
+            
+            // Show pause panel
+            if (pausePanel != null)
+            {
+                pausePanel.SetActive(true);
+            }
+            
+            // Update upgrade display in pause panel
+            UpdatePauseUpgradeDisplay();
+            
+            Debug.Log("[Roguelike] Game paused");
+        }
+    }
+    
+    /// <summary>
+    /// Update the upgrade display in the pause panel
+    /// </summary>
+    private void UpdatePauseUpgradeDisplay()
+    {
+        if (pauseUpgradeSlots == null || pauseUpgradeSlots.Length == 0 || upgradeDatabase == null || playerUpgrades == null)
+        {
+            return;
+        }
+        
+        // Get list of purchased upgrades (those with tier > 0), excluding points upgrades
+        var purchasedUpgrades = new System.Collections.Generic.List<UpgradeType>();
+        foreach (var kvp in playerUpgrades.upgradeTiers)
+        {
+            if (kvp.Value > 0)
+            {
+                // Skip points upgrades (RabbitPoints, MeerkatPoints, etc.)
+                UpgradeDefinition upgradeDef = upgradeDatabase.GetUpgrade(kvp.Key);
+                if (upgradeDef != null && upgradeDef.isPointsUpgrade)
+                {
+                    continue; // Don't display points upgrades in pause menu
+                }
+                
+                purchasedUpgrades.Add(kvp.Key);
+            }
+        }
+        
+        Debug.Log($"[Roguelike] Displaying {purchasedUpgrades.Count} purchased upgrades in pause panel (excluding points upgrades)");
+        
+        // Display each purchased upgrade
+        for (int i = 0; i < pauseUpgradeSlots.Length; i++)
+        {
+            Transform slot = pauseUpgradeSlots[i];
+            
+            if (slot == null)
+            {
+                continue;
+            }
+            
+            // If we have an upgrade to display in this slot
+            if (i < purchasedUpgrades.Count)
+            {
+                UpgradeType upgradeType = purchasedUpgrades[i];
+                int tierLevel = playerUpgrades.GetTierLevel(upgradeType);
+                UpgradeDefinition upgradeDef = upgradeDatabase.GetUpgrade(upgradeType);
+                
+                // Show the slot
+                slot.gameObject.SetActive(true);
+                
+                // Set the main upgrade icon
+                UnityEngine.UI.Image mainImage = slot.GetComponent<UnityEngine.UI.Image>();
+                if (mainImage != null && upgradeDef != null && upgradeDef.icon != null)
+                {
+                    mainImage.sprite = upgradeDef.icon;
+                    mainImage.enabled = true;
+                }
+                
+                // Update tier indicators (child images)
+                int maxTiers = upgradeDef != null ? upgradeDef.maxTiers : 5;
+                for (int tierIndex = 0; tierIndex < slot.childCount && tierIndex < 5; tierIndex++)
+                {
+                    Transform tierChild = slot.GetChild(tierIndex);
+                    UnityEngine.UI.Image tierImage = tierChild.GetComponent<UnityEngine.UI.Image>();
+                    
+                    if (tierImage != null)
+                    {
+                        // Show tier indicator if within max tiers and purchased
+                        bool shouldShow = tierIndex < tierLevel && tierIndex < maxTiers;
+                        tierChild.gameObject.SetActive(shouldShow);
+                    }
+                }
+                
+                Debug.Log($"[Roguelike] Slot {i}: {upgradeType} (Tier {tierLevel}/{maxTiers})");
+            }
+            else
+            {
+                // No upgrade for this slot - hide it
+                slot.gameObject.SetActive(false);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Resume the game
+    /// </summary>
+    public void ResumeGame()
+    {
+        if (isPaused)
+        {
+            isPaused = false;
+            Time.timeScale = 1f;
+            
+            // Hide pause panel
+            if (pausePanel != null)
+            {
+                pausePanel.SetActive(false);
+            }
+            
+            Debug.Log("[Roguelike] Game resumed");
+        }
+    }
+    
+    /// <summary>
+    /// Return to main menu (from pause or game over)
     /// </summary>
     public void ReturnToMainMenu()
     {
+        // Make sure time scale is restored
+        Time.timeScale = 1f;
+        isPaused = false;
+        
         Debug.Log("[Roguelike] Returning to Main Menu");
         SceneManager.LoadScene("MainMenuScene");
     }

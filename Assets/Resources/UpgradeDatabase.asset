@@ -1,0 +1,463 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf158af81b8b14dce9a850f934651ae2, type: 3}
+  m_Name: UpgradeDatabase
+  m_EditorClassIdentifier: 
+  upgrades:
+  - upgradeType: 0
+    displayName: Rabbit Points +1
+    description: +1 Points for Rabbits
+    baseCost: 1
+    icon: {fileID: -4493016183803695191, guid: 80c1f510e691844638bb63e05b98d5e9, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 1
+    isPointsUpgrade: 1
+    spawnWeightPerWave:
+    - 100
+    - 50
+    - 40
+    - 30
+    - 20
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    limitedPerWave: 0
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 1
+    displayName: Rabbit Points +3
+    description: +3 Points per Rabbits
+    baseCost: 2
+    icon: {fileID: -2022596859199547106, guid: 0c639bce870a14604b4971602398bcd2, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 1
+    isPointsUpgrade: 1
+    spawnWeightPerWave:
+    - 0
+    - 30
+    - 30
+    - 40
+    - 50
+    - 50
+    - 50
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    limitedPerWave: 0
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 5
+    displayName: Round Length +2
+    description: +2 Seconds per Round
+    baseCost: 3
+    icon: {fileID: -6569602778538756768, guid: 9e72e092c82e1470892da86c370ad9d7, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 5
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 4
+    displayName: Spawn Rate +1
+    description: +1 Animal per Second
+    baseCost: 6
+    icon: {fileID: 5184787979359142980, guid: 04fb5a780443c4a328a2db08744bc9af, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 3
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 100
+    - 100
+    - 100
+    - 100
+    - 80
+    - 80
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 6
+    displayName: Combo Starter -1
+    description: -1 Hit per Combo, -0.5 Gold per Combo
+    baseCost: 6
+    icon: {fileID: -4753674223844288362, guid: 823c86eaa7cb5404dac7645812a9d58b, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 3
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    limitedPerWave: 1
+    requiresMinValue: 1
+    minRequiredValue: 2
+    locksOutUpgrades: 0b0000000f0000000e000000
+  - upgradeType: 7
+    displayName: +0.5x Combo Mult
+    description: +0.5x Combo Multiplier
+    baseCost: 4
+    icon: {fileID: -1967696309408261634, guid: 473d609e62d714bfa8f7207ade7f0a93, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 5
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 8
+    displayName: Meerkat Spawn Rate
+    description: Meerkats Spawn Rate +2
+    baseCost: 4
+    icon: {fileID: 8076018923612896017, guid: 9be1a0638da0d4f8980f6de1820d072c, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 5
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 30
+    - 30
+    - 100
+    - 90
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    - 80
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 2
+    displayName: Meerkat Points +1
+    description: +1 Point per Meerkat
+    baseCost: 2
+    icon: {fileID: -8746126020030871634, guid: 14329f9b2e621433fb221be423c289fa, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 1
+    isPointsUpgrade: 1
+    spawnWeightPerWave:
+    - 0
+    - 0
+    - 0
+    - 100
+    - 70
+    - 70
+    - 70
+    - 50
+    - 50
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    limitedPerWave: 0
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 3
+    displayName: Meerkat Points +3
+    description: +3 Point per Meerkat
+    baseCost: 5
+    icon: {fileID: -7453794698497457397, guid: 4c869c608380f4755bd9b7b95ed7c5a6, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 1
+    isPointsUpgrade: 1
+    spawnWeightPerWave:
+    - 0
+    - 0
+    - 0
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    - 40
+    limitedPerWave: 0
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 9
+    displayName: Fox Spawn Rate
+    description: Fox Spawn Rate +2
+    baseCost: 5
+    icon: {fileID: 614913275398758017, guid: 2931d9eda3015436488eb0ecae20f3c5, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 5
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 30
+    - 40
+    - 40
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    - 70
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 10
+    displayName: Badger Spawn Rate
+    description: Badger Spawn Rate +2
+    baseCost: 7
+    icon: {fileID: -5831193123582106747, guid: 1d153f7b951a2403bbd9b35c5b20e1bb, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 5
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 30
+    - 30
+    - 70
+    - 70
+    - 80
+    - 90
+    - 90
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 11
+    displayName: Combo Shield
+    description: -1 Combo Counter on Miss
+    baseCost: 8
+    icon: {fileID: 7034825334637302297, guid: 973812a5a9595433c9511e749ff59ad8, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 1
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 0
+    - 30
+    - 30
+    - 30
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    - 50
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 060000000e000000
+  - upgradeType: 12
+    displayName: Perfect Hit
+    description: Hit within 0.4s for a Perfect Hit Bonus
+    baseCost: 3
+    icon: {fileID: -7254635571720125566, guid: 87f65c9f393664c298412f336a1a62f3, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 3
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 13
+    displayName: Critical Hit
+    description: Double Points on Critical Hit
+    baseCost: 4
+    icon: {fileID: 4120829091562637579, guid: e48ea13add24a4b83ae30a30edd9e772, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 5
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 0
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 
+  - upgradeType: 14
+    displayName: Time Per Combo
+    description: Combos Add Time to Round, +1 Combo Starter
+    baseCost: 6
+    icon: {fileID: 8389549219767813092, guid: 28d7bf10032754fdd82b8be8e6c36373, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 3
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 0
+    - 0
+    - 0
+    - 70
+    - 60
+    - 50
+    - 40
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 0f0000000b00000006000000
+  - upgradeType: 15
+    displayName: Combo Interest
+    description: Increase Multiplier per Combo within the Wave
+    baseCost: 6
+    icon: {fileID: -5348794490341433732, guid: fa14afbfe9c354b78adead751c61b4c9, type: 3}
+    priceScalingPerRound: 1
+    maxTiers: 3
+    isPointsUpgrade: 0
+    spawnWeightPerWave:
+    - 0
+    - 0
+    - 0
+    - 70
+    - 60
+    - 50
+    - 40
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    - 30
+    limitedPerWave: 1
+    requiresMinValue: 0
+    minRequiredValue: 0
+    locksOutUpgrades: 0e00000006000000

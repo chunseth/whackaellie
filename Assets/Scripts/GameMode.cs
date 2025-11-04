@@ -26,8 +26,15 @@ public class SurvivalModeSettings
     public bool snakeGivesPoints = false;        // If false, snake gives no points (only penalty)
     public int snakePenaltyPoints = -10;         // Points to lose when hitting snake (if it gives points)
     
-    [Header("Difficulty")]
+    [Header("Spawn Rates")]
+    public float startMinSpawnRate = 1.0f;          // Starting minimum spawn rate (animals/sec)
+    public float startMaxSpawnRate = 2.0f;          // Starting maximum spawn rate (animals/sec)
+    public int maxActiveAnimals = 7;                // Maximum animals on screen at once
+    
+    [Header("Difficulty Scaling")]
     public bool increaseDifficultyOverTime = true;  // Gradually make it harder
     public float difficultyIncreaseInterval = 30f;  // Every X seconds, increase difficulty
+    public float spawnRateIncrease = 0.2f;          // How much to increase spawn rate per interval
+    public float maxSpawnRate = 5.0f;               // Maximum spawn rate cap
 }
 

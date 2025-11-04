@@ -9,27 +9,56 @@ public class ShopManager : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private RoguelikeManager roguelikeManager;
+    [SerializeField] private UpgradeDatabase upgradeDatabase;
+    [SerializeField] private bool loadDatabaseFromResources = true;
+    [SerializeField] private string databaseResourcePath = "UpgradeDatabase";
     
     [Header("UI Elements")]
     [SerializeField] private TextMeshProUGUI currencyText;
     [SerializeField] private Button continueButton;
+    [SerializeField] private Button rerollButton;
+    [SerializeField] private GameObject backgroundPanel;
     
     [Header("Upgrade Buttons")]
-    [SerializeField] private ShopUpgradeButton rabbitPointsButton;
-    [SerializeField] private ShopUpgradeButton roundLengthButton;
-    [SerializeField] private ShopUpgradeButton spawnRateButton;
-    [SerializeField] private ShopUpgradeButton comboStarterButton;
-    [SerializeField] private ShopUpgradeButton comboMultiplierButton;
+    [SerializeField] private ShopUpgradeButton upgradeButton1;
+    [SerializeField] private ShopUpgradeButton upgradeButton2;
+    [SerializeField] private ShopUpgradeButton upgradeButton3;
+    [SerializeField] private ShopUpgradeButton upgradeButton4;
     
-    [Header("Upgrade Costs")]
-    [SerializeField] private int rabbitPointsCost = 20;
-    [SerializeField] private int roundLengthCost = 30;
-    [SerializeField] private int spawnRateCost = 25;
-    [SerializeField] private int comboStarterCost = 40;
-    [SerializeField] private int comboMultiplierCost = 50;
+    [Header("Tier Visuals")]
+    [SerializeField] private Sprite tierEmptySprite;
+    [SerializeField] private Sprite tierBoughtSprite;
+    
+    [Header("Description Panels")]
+    [SerializeField] private GameObject upgradeDescription1;
+    [SerializeField] private GameObject upgradeDescription2;
+    [SerializeField] private GameObject upgradeDescription3;
+    [SerializeField] private GameObject upgradeDescription4;
+    
+    [Header("Buy Buttons")]
+    [SerializeField] private Button buyButton1;
+    [SerializeField] private Button buyButton2;
+    [SerializeField] private Button buyButton3;
+    [SerializeField] private Button buyButton4;
+    
+    // Arrays to store references for easier access
+    private GameObject[] descriptionPanels;
+    private Button[] buyButtons;
+    
+    [Header("Randomization")]
+    [SerializeField] private int numberOfUpgradesToShow = 4;
+    [SerializeField] private int rerollCost = 2;
+    [SerializeField] private bool useRandomSeed = false;
+    [SerializeField] private int randomSeed = 0;
+    
+    // Currently displayed upgrade types (randomized each shop visit)
+    private UpgradeType[] currentUpgradeTypes;
     
     private PlayerUpgrades currentUpgrades;
-    private bool hasBoughtRoundLengthThisWave = false;  // Track if round length was purchased this wave
+    private System.Collections.Generic.HashSet<UpgradeType> purchasedLimitedUpgradesThisWave = new System.Collections.Generic.HashSet<UpgradeType>();  // Track which limited upgrades were purchased this wave
+    private System.Random shopRandom;
+    private int lastRandomizedWave = -1;  // Track which wave we last randomized for
+    private int lastShopOpenedWave = -1;  // Track actual currentWave when shop last opened (for clearing limited purchases)
     
     private void Start()
     {
@@ -38,44 +67,339 @@ public class ShopManager : MonoBehaviour
             roguelikeManager = FindObjectOfType<RoguelikeManager>();
         }
         
-        // Setup button listeners
-        if (rabbitPointsButton != null)
+        // Load upgrade database from Resources if needed (for builds)
+        if (loadDatabaseFromResources)
         {
-            rabbitPointsButton.SetupButton("Animal Points +1", rabbitPointsCost, () => BuyRabbitPoints());
+            upgradeDatabase = Resources.Load<UpgradeDatabase>(databaseResourcePath);
+            if (upgradeDatabase == null)
+            {
+                Debug.LogError($"[Shop] Failed to load UpgradeDatabase from Resources/{databaseResourcePath}! Make sure the asset is in a Resources folder.");
+            }
+            else
+            {
+                Debug.Log($"[Shop] Successfully loaded UpgradeDatabase from Resources.");
+            }
+        }
+        else if (upgradeDatabase == null)
+        {
+            Debug.LogWarning("[Shop] UpgradeDatabase is not assigned and loadDatabaseFromResources is false!");
         }
         
-        if (roundLengthButton != null)
-        {
-            roundLengthButton.SetupButton("Round Length +2s", roundLengthCost, () => BuyRoundLength());
-        }
+        // Initialize arrays
+        descriptionPanels = new GameObject[] { upgradeDescription1, upgradeDescription2, upgradeDescription3, upgradeDescription4 };
+        buyButtons = new Button[] { buyButton1, buyButton2, buyButton3, buyButton4 };
         
-        if (spawnRateButton != null)
+        // Setup background panel to close descriptions
+        if (backgroundPanel != null)
         {
-            spawnRateButton.SetupButton("Spawn Rate +1.0/s", spawnRateCost, () => BuySpawnRate());
-        }
-        
-        if (comboStarterButton != null)
-        {
-            comboStarterButton.SetupButton("Combo Starter -1", comboStarterCost, () => BuyComboStarter());
-        }
-        
-        if (comboMultiplierButton != null)
-        {
-            comboMultiplierButton.SetupButton("Combo Mult +0.5x", comboMultiplierCost, () => BuyComboMultiplier());
+            Button bgButton = backgroundPanel.GetComponent<Button>();
+            if (bgButton != null)
+            {
+                bgButton.onClick.AddListener(() => CloseAllDescriptions());
+            }
         }
         
         if (continueButton != null)
         {
             continueButton.onClick.AddListener(ContinueToNextWave);
         }
+        
+        if (rerollButton != null)
+        {
+            rerollButton.onClick.AddListener(RerollShop);
+        }
+        
+        // Ensure all descriptions and background start inactive
+        CloseAllDescriptions();
     }
     
     private void OnEnable()
     {
-        // Reset per-wave purchase trackers
-        hasBoughtRoundLengthThisWave = false;
+        // Close all descriptions when shop opens
+        CloseAllDescriptions();
+        
+        // Clear limited purchases tracker if this is a new wave (use absolute wave number)
+        if (roguelikeManager != null)
+        {
+            int absoluteWave = roguelikeManager.GetAbsoluteWaveNumber();
+            if (absoluteWave != lastShopOpenedWave)
+            {
+                Debug.Log($"[Shop] New shop session detected (absolute wave {lastShopOpenedWave} → {absoluteWave}) - Clearing limited purchase tracker");
+                purchasedLimitedUpgradesThisWave.Clear();
+                lastShopOpenedWave = absoluteWave;
+            }
+        }
+        
+        // Randomize which upgrades appear in the shop
+        RandomizeShopUpgrades();
         
         RefreshShop();
+    }
+    
+    /// <summary>
+    /// Randomize which upgrades appear in the shop
+    /// </summary>
+    private void RandomizeShopUpgrades()
+    {
+        if (upgradeDatabase == null)
+        {
+            Debug.LogWarning("[Shop] UpgradeDatabase is not assigned!");
+            return;
+        }
+        
+        if (roguelikeManager == null)
+        {
+            Debug.LogWarning("[Shop] RoguelikeManager is not assigned!");
+            return;
+        }
+        
+        // Get absolute wave number (across all rounds) from the roguelike manager
+        int absoluteWave = roguelikeManager.GetAbsoluteWaveNumber();
+        
+        // Shop shows upgrades for the wave that was just COMPLETED, not the upcoming wave
+        // So we use absoluteWave - 1 for shop upgrades (wave just finished)
+        int shopWave = Mathf.Max(1, absoluteWave - 1);
+        
+        // Check if we're on a new wave - if so, reinitialize the random generator
+        if (shopWave != lastRandomizedWave)
+        {
+            Debug.Log($"[Shop] Shop for completed wave {shopWave} (absolute wave: {absoluteWave}, previous shop wave: {lastRandomizedWave})");
+            
+            // Reset per-wave purchase trackers for the new wave
+            purchasedLimitedUpgradesThisWave.Clear();
+            
+            // Initialize/reinitialize random generator for the new wave
+            if (useRandomSeed)
+            {
+                // Use wave-specific seed for reproducibility
+                shopRandom = new System.Random(randomSeed + shopWave);
+                Debug.Log($"[Shop] Wave {shopWave} shop - Using seed: {randomSeed + shopWave}");
+            }
+            else
+            {
+                // Use time-based seed for true randomness
+                shopRandom = new System.Random((int)(System.DateTime.Now.Ticks % int.MaxValue) + shopWave);
+                Debug.Log($"[Shop] Wave {shopWave} shop - Using time-based random seed");
+            }
+            
+            lastRandomizedWave = shopWave;
+        }
+        
+        // Get random upgrades from the database based on the completed wave
+        // Pass currentUpgrades to filter out maxed upgrades
+        PlayerUpgrades upgrades = roguelikeManager.GetPlayerUpgrades();
+        currentUpgradeTypes = upgradeDatabase.GetRandomUpgrades(numberOfUpgradesToShow, shopWave, upgrades, shopRandom);
+        
+        Debug.Log($"[Shop] Absolute wave {absoluteWave} (Round {roguelikeManager.GetCurrentWaveNumber()}) - Randomized upgrades: {string.Join(", ", currentUpgradeTypes)}");
+        
+        // Setup upgrade buttons with the randomized upgrades
+        for (int i = 0; i < numberOfUpgradesToShow && i < currentUpgradeTypes.Length; i++)
+        {
+            ShopUpgradeButton upgradeButton = GetUpgradeButton(i);
+            Button buyButton = GetBuyButton(i);
+            
+            if (upgradeButton != null)
+            {
+                SetupUpgradeButton(upgradeButton, currentUpgradeTypes[i], i);
+                UpdateTierVisuals(upgradeButton, currentUpgradeTypes[i]);
+            }
+            
+            if (buyButton != null)
+            {
+                SetupBuyButton(buyButton, currentUpgradeTypes[i]);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Update tier visuals for an upgrade button
+    /// </summary>
+    private void UpdateTierVisuals(ShopUpgradeButton upgradeButton, UpgradeType upgradeType)
+    {
+        if (upgradeButton == null || upgradeButton.button == null || upgradeDatabase == null || currentUpgrades == null) return;
+        
+        UpgradeDefinition upgrade = upgradeDatabase.GetUpgrade(upgradeType);
+        if (upgrade == null) return;
+        
+        // Find TierParent GameObject (sibling of the button within UpgradeN)
+        // Hierarchy: Shop > UpgradeN > Button & TierParent (siblings)
+        Transform upgradeParent = upgradeButton.button.transform.parent;
+        if (upgradeParent == null)
+        {
+            Debug.LogWarning($"[Shop] Upgrade parent not found for button");
+            return;
+        }
+        
+        Transform tierParent = upgradeParent.Find("TierParent");
+        if (tierParent == null)
+        {
+            Debug.LogWarning($"[Shop] TierParent not found in {upgradeParent.name}");
+            return;
+        }
+        
+        int currentTier = currentUpgrades.GetTierLevel(upgradeType);
+        
+        Debug.Log($"[Shop] Updating tier visuals for {upgradeType} - Tier: {currentTier}, IsPointsUpgrade: {upgrade.isPointsUpgrade}");
+        
+        // Check if this is a points upgrade (special case: show text instead of images)
+        if (upgrade.isPointsUpgrade)
+        {
+            UpdatePointsTierDisplay(tierParent, upgradeType, currentTier);
+        }
+        else
+        {
+            UpdateImageTierDisplay(tierParent, currentTier, upgrade.maxTiers);
+        }
+    }
+    
+    /// <summary>
+    /// Update tier display for points upgrades (shows "X + Y" text)
+    /// </summary>
+    private void UpdatePointsTierDisplay(Transform tierParent, UpgradeType upgradeType, int tiersPurchased)
+    {
+        Debug.Log($"[Shop] UpdatePointsTierDisplay for {upgradeType} - TierParent has {tierParent.childCount} children");
+        
+        // Hide all tier images (set both enabled and active to false)
+        for (int i = 0; i < tierParent.childCount; i++)
+        {
+            Transform child = tierParent.GetChild(i);
+            UnityEngine.UI.Image img = child.GetComponent<UnityEngine.UI.Image>();
+            if (img != null)
+            {
+                img.enabled = false;
+                child.gameObject.SetActive(false);
+                Debug.Log($"[Shop] Disabled tier image {i} for points upgrade");
+            }
+        }
+        
+        // Find or create TextMeshProUGUI component
+        TextMeshProUGUI tierText = tierParent.GetComponent<TextMeshProUGUI>();
+        if (tierText == null)
+        {
+            tierText = tierParent.gameObject.AddComponent<TextMeshProUGUI>();
+            tierText.alignment = TextAlignmentOptions.Center;
+            tierText.fontSize = 48;
+            Debug.Log($"[Shop] Created new TierText component with font size 48");
+        }
+        else
+        {
+            tierText.fontSize = 48; // Ensure font size is correct
+        }
+        
+        tierText.enabled = true;
+        
+        // Get default base points (before any upgrades)
+        int defaultBase = 0;
+        if (upgradeType == UpgradeType.RabbitPoints1 || upgradeType == UpgradeType.RabbitPoints3)
+        {
+            defaultBase = 5; // Default rabbit points
+        }
+        else if (upgradeType == UpgradeType.MeerkatPoints1 || upgradeType == UpgradeType.MeerkatPoints3)
+        {
+            defaultBase = 10; // Default meerkat points
+        }
+        
+        // Get current total points (from PlayerUpgrades)
+        int currentTotalPoints = 0;
+        if (upgradeType == UpgradeType.RabbitPoints1 || upgradeType == UpgradeType.RabbitPoints3)
+        {
+            currentTotalPoints = currentUpgrades.basePointsPerRabbit;
+        }
+        else if (upgradeType == UpgradeType.MeerkatPoints1 || upgradeType == UpgradeType.MeerkatPoints3)
+        {
+            currentTotalPoints = currentUpgrades.basePointsPerMeerkat;
+        }
+        
+        // Calculate bonus (total - default base)
+        int bonusPoints = currentTotalPoints - defaultBase;
+        
+        tierText.text = $"{defaultBase} + {bonusPoints}";
+        Debug.Log($"[Shop] Points tier text set to: '{tierText.text}' (default: {defaultBase}, current: {currentTotalPoints}, bonus: {bonusPoints})");
+    }
+    
+    /// <summary>
+    /// Update tier display for non-points upgrades (shows tier images)
+    /// </summary>
+    private void UpdateImageTierDisplay(Transform tierParent, int currentTier, int maxTiers)
+    {
+        Debug.Log($"[Shop] UpdateImageTierDisplay - CurrentTier: {currentTier}, MaxTiers: {maxTiers}, Children: {tierParent.childCount}");
+        
+        // Disable any text component
+        TextMeshProUGUI tierText = tierParent.GetComponent<TextMeshProUGUI>();
+        if (tierText != null)
+        {
+            tierText.enabled = false;
+        }
+        
+        // Update tier images (assuming 5 image children in TierParent)
+        for (int i = 0; i < Mathf.Min(5, tierParent.childCount); i++)
+        {
+            Transform child = tierParent.GetChild(i);
+            UnityEngine.UI.Image tierImage = child.GetComponent<UnityEngine.UI.Image>();
+            
+            if (tierImage != null)
+            {
+                // Show/hide based on maxTiers
+                if (i < maxTiers)
+                {
+                    child.gameObject.SetActive(true);
+                    tierImage.enabled = true;
+                    
+                    // Set sprite based on whether tier is purchased
+                    if (i < currentTier)
+                    {
+                        tierImage.sprite = tierBoughtSprite;
+                        Debug.Log($"[Shop] Tier {i}: BOUGHT (sprite: {tierBoughtSprite?.name})");
+                    }
+                    else
+                    {
+                        tierImage.sprite = tierEmptySprite;
+                        Debug.Log($"[Shop] Tier {i}: EMPTY (sprite: {tierEmptySprite?.name})");
+                    }
+                }
+                else
+                {
+                    // Hide images beyond maxTiers
+                    child.gameObject.SetActive(false);
+                    tierImage.enabled = false;
+                    Debug.Log($"[Shop] Tier {i}: HIDDEN (beyond max tiers)");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[Shop] Child {i} of TierParent has no Image component");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Get upgrade button by index
+    /// </summary>
+    private ShopUpgradeButton GetUpgradeButton(int index)
+    {
+        switch (index)
+        {
+            case 0: return upgradeButton1;
+            case 1: return upgradeButton2;
+            case 2: return upgradeButton3;
+            case 3: return upgradeButton4;
+            default: return null;
+        }
+    }
+    
+    /// <summary>
+    /// Get buy button by index
+    /// </summary>
+    private Button GetBuyButton(int index)
+    {
+        switch (index)
+        {
+            case 0: return buyButton1;
+            case 1: return buyButton2;
+            case 2: return buyButton3;
+            case 3: return buyButton4;
+            default: return null;
+        }
     }
     
     /// <summary>
@@ -87,6 +411,16 @@ public class ShopManager : MonoBehaviour
         {
             Debug.LogWarning("[Shop] RoguelikeManager is null!");
             return;
+        }
+        
+        // Check if we're on a new wave and need to re-randomize upgrades
+        int absoluteWave = roguelikeManager.GetAbsoluteWaveNumber();
+        int shopWave = Mathf.Max(1, absoluteWave - 1);  // Shop is for the wave just completed
+        
+        if (shopWave != lastRandomizedWave)
+        {
+            Debug.Log($"[Shop] Detected wave change - Shop wave changed from {lastRandomizedWave} to {shopWave} (absolute wave: {absoluteWave}) - Re-randomizing shop!");
+            RandomizeShopUpgrades();
         }
         
         currentUpgrades = roguelikeManager.GetPlayerUpgrades();
@@ -112,118 +446,244 @@ public class ShopManager : MonoBehaviour
         
         // Update button affordability
         UpdateButtonStates();
+        
+        // Update reroll button affordability
+        UpdateRerollButton();
+        
+        // Update tier visuals after affordability check
+        UpdateAllTierVisuals();
     }
     
     /// <summary>
-    /// Update which buttons can be afforded
+    /// Update reroll button affordability based on player's gold
+    /// </summary>
+    private void UpdateRerollButton()
+    {
+        if (rerollButton != null && currentUpgrades != null)
+        {
+            bool canAfford = currentUpgrades.currentGold >= rerollCost;
+            rerollButton.interactable = canAfford;
+            
+            // Optionally update button text to show cost
+            TextMeshProUGUI buttonText = rerollButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (buttonText != null)
+            {
+                buttonText.text = $"Reroll (${rerollCost})";
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Update tier visuals for all currently displayed upgrades
+    /// </summary>
+    private void UpdateAllTierVisuals()
+    {
+        if (currentUpgradeTypes == null) return;
+        
+        for (int i = 0; i < numberOfUpgradesToShow && i < currentUpgradeTypes.Length; i++)
+        {
+            ShopUpgradeButton upgradeButton = GetUpgradeButton(i);
+            if (upgradeButton != null)
+            {
+                UpdateTierVisuals(upgradeButton, currentUpgradeTypes[i]);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Update which buy buttons can be afforded (upgrade buttons always stay at default color)
     /// </summary>
     private void UpdateButtonStates()
     {
+        if (currentUpgradeTypes == null || currentUpgradeTypes.Length == 0)
+        {
+            return;
+        }
+        
         int currency = currentUpgrades.currentGold;
         
-        if (rabbitPointsButton != null)
-            rabbitPointsButton.SetAffordable(currency >= rabbitPointsCost);
-            
-        if (roundLengthButton != null)
-            roundLengthButton.SetAffordable(currency >= roundLengthCost && !hasBoughtRoundLengthThisWave);
-            
-        if (spawnRateButton != null)
-            spawnRateButton.SetAffordable(currency >= spawnRateCost);
-            
-        if (comboStarterButton != null)
-            comboStarterButton.SetAffordable(currency >= comboStarterCost && currentUpgrades.comboHitsToStart > 1);
-            
-        if (comboMultiplierButton != null)
-            comboMultiplierButton.SetAffordable(currency >= comboMultiplierCost);
-            
-    }
-    
-    /// <summary>
-    /// Purchase upgrade: Animal Points +1 (applies to all animals except snake)
-    /// </summary>
-    private void BuyRabbitPoints()
-    {
-        if (TryPurchase(rabbitPointsCost))
+        // Update buy buttons based on their assigned upgrade types
+        for (int i = 0; i < currentUpgradeTypes.Length && i < numberOfUpgradesToShow; i++)
         {
-            roguelikeManager.ApplyUpgrade(upgrades =>
+            Button buyButton = GetBuyButton(i);
+            if (buyButton != null)
             {
-                upgrades.basePointsPerRabbit += 1;
-                upgrades.basePointsPerMeerkat += 1;
-            });
-            Debug.Log($"[Shop] Purchased Animal Points! Rabbit: {currentUpgrades.basePointsPerRabbit}pt, Meerkat: {currentUpgrades.basePointsPerMeerkat}pt");
-            RefreshShop();
+                UpdateBuyButtonAffordability(buyButton, currentUpgradeTypes[i], currency);
+            }
         }
     }
     
     /// <summary>
-    /// Purchase upgrade: Round Length +2s (limited to once per wave)
+    /// Update affordability for a specific buy button based on its upgrade type
     /// </summary>
-    private void BuyRoundLength()
+    private void UpdateBuyButtonAffordability(Button buyButton, UpgradeType upgradeType, int currency)
     {
-        if (hasBoughtRoundLengthThisWave)
+        if (buyButton == null || upgradeDatabase == null || roguelikeManager == null) return;
+        
+        // Check if this specific upgrade was already purchased this wave
+        bool purchasedThisWave = purchasedLimitedUpgradesThisWave.Contains(upgradeType);
+        
+        int currentRound = roguelikeManager.GetCurrentRound();
+        bool affordable = upgradeDatabase.CanAfford(upgradeType, currency, currentUpgrades, purchasedThisWave, currentRound);
+        buyButton.interactable = affordable;
+    }
+    
+    /// <summary>
+    /// Setup an upgrade button based on its assigned upgrade type
+    /// </summary>
+    private void SetupUpgradeButton(ShopUpgradeButton upgradeButton, UpgradeType upgradeType, int buttonIndex)
+    {
+        if (upgradeButton == null) return;
+        
+        string upgradeName = GetUpgradeName(upgradeType);
+        int upgradeCost = GetUpgradeCost(upgradeType);
+        Sprite upgradeSprite = GetUpgradeSprite(upgradeType);
+        
+        upgradeButton.SetupButton(upgradeName, upgradeCost, upgradeSprite, () => ShowUpgradeDescription(buttonIndex));
+    }
+    
+    /// <summary>
+    /// Setup a buy button based on its assigned upgrade type
+    /// </summary>
+    private void SetupBuyButton(Button buyButton, UpgradeType upgradeType)
+    {
+        if (buyButton == null) return;
+        
+        buyButton.onClick.RemoveAllListeners();
+        buyButton.onClick.AddListener(() => PurchaseUpgrade(upgradeType));
+    }
+    
+    /// <summary>
+    /// Show description for an upgrade by button index
+    /// </summary>
+    private void ShowUpgradeDescription(int buttonIndex)
+    {
+        if (buttonIndex >= 0 && buttonIndex < descriptionPanels.Length && buttonIndex < buyButtons.Length)
         {
-            Debug.LogWarning("[Shop] Round Length can only be purchased once per wave!");
+            UpgradeType upgradeType = GetUpgradeTypeForButton(buttonIndex);
+            ShowDescription(descriptionPanels[buttonIndex], buyButtons[buttonIndex], upgradeType);
+        }
+        else
+        {
+            Debug.LogWarning($"[Shop] Invalid button index: {buttonIndex}");
+        }
+    }
+    
+    /// <summary>
+    /// Get the display name for an upgrade type
+    /// </summary>
+    private string GetUpgradeName(UpgradeType upgradeType)
+    {
+        if (upgradeDatabase == null) return "Unknown Upgrade";
+        UpgradeDefinition upgrade = upgradeDatabase.GetUpgrade(upgradeType);
+        return upgrade != null ? upgrade.displayName : "Unknown Upgrade";
+    }
+    
+    /// <summary>
+    /// Get the cost for an upgrade type (scaled by current round)
+    /// </summary>
+    private int GetUpgradeCost(UpgradeType upgradeType)
+    {
+        if (upgradeDatabase == null || roguelikeManager == null) return 0;
+        UpgradeDefinition upgrade = upgradeDatabase.GetUpgrade(upgradeType);
+        if (upgrade == null) return 0;
+        
+        int currentRound = roguelikeManager.GetCurrentRound();
+        return upgrade.GetCostForRound(currentRound);
+    }
+    
+    /// <summary>
+    /// Get the sprite for an upgrade type
+    /// </summary>
+    private Sprite GetUpgradeSprite(UpgradeType upgradeType)
+    {
+        if (upgradeDatabase == null) return null;
+        UpgradeDefinition upgrade = upgradeDatabase.GetUpgrade(upgradeType);
+        return upgrade != null ? upgrade.icon : null;
+    }
+    
+    /// <summary>
+    /// Get the description for an upgrade type
+    /// </summary>
+    private string GetUpgradeDescription(UpgradeType upgradeType)
+    {
+        if (upgradeDatabase == null) return "";
+        UpgradeDefinition upgrade = upgradeDatabase.GetUpgrade(upgradeType);
+        return upgrade != null ? upgrade.description : "";
+    }
+    
+    /// <summary>
+    /// Get the upgrade type assigned to a button index
+    /// </summary>
+    private UpgradeType GetUpgradeTypeForButton(int buttonIndex)
+    {
+        if (currentUpgradeTypes != null && buttonIndex >= 0 && buttonIndex < currentUpgradeTypes.Length)
+        {
+            return currentUpgradeTypes[buttonIndex];
+        }
+        
+        Debug.LogWarning($"[Shop] Invalid button index {buttonIndex} or currentUpgradeTypes not initialized!");
+        return UpgradeType.RabbitPoints1;
+    }
+    
+    /// <summary>
+    /// Purchase an upgrade based on its type
+    /// </summary>
+    private void PurchaseUpgrade(UpgradeType upgradeType)
+    {
+        if (upgradeDatabase == null)
+        {
+            Debug.LogWarning("[Shop] UpgradeDatabase is not assigned!");
             return;
         }
         
-        if (TryPurchase(roundLengthCost))
-        {
-            roguelikeManager.ApplyUpgrade(upgrades => upgrades.waveDuration += 2f);
-            hasBoughtRoundLengthThisWave = true;
-            Debug.Log($"[Shop] Purchased Round Length! Now: {currentUpgrades.waveDuration}s (limited upgrade used)");
-            RefreshShop();
-        }
-    }
-    
-    /// <summary>
-    /// Purchase upgrade: Spawn Rate +1.0/s
-    /// </summary>
-    private void BuySpawnRate()
-    {
-        if (TryPurchase(spawnRateCost))
-        {
-            roguelikeManager.ApplyUpgrade(upgrades =>
-            {
-                upgrades.minSpawnRate += 1.0f;
-                upgrades.maxSpawnRate += 1.0f;
-                upgrades.maxActiveAnimals += 2;  // Also increase max animals on screen
-            });
-            Debug.Log($"[Shop] Purchased Spawn Rate! Now: {currentUpgrades.minSpawnRate}-{currentUpgrades.maxSpawnRate}/s, Max animals: {currentUpgrades.maxActiveAnimals}");
-            RefreshShop();
-        }
-    }
-    
-    /// <summary>
-    /// Purchase upgrade: Combo Starter -1 hit
-    /// </summary>
-    private void BuyComboStarter()
-    {
-        if (currentUpgrades.comboHitsToStart <= 1)
-        {
-            Debug.LogWarning("[Shop] Cannot reduce combo starter below 1!");
-            return;
-        }
+        UpgradeDefinition upgrade = upgradeDatabase.GetUpgrade(upgradeType);
+        if (upgrade == null) return;
         
-        if (TryPurchase(comboStarterCost))
+        // Get cost for current round
+        int currentRound = roguelikeManager.GetCurrentRound();
+        int cost = upgrade.GetCostForRound(currentRound);
+        
+        // Try to purchase
+        if (TryPurchase(cost))
         {
-            roguelikeManager.ApplyUpgrade(upgrades => upgrades.comboHitsToStart -= 1);
-            Debug.Log($"[Shop] Purchased Combo Starter! Now: {currentUpgrades.comboHitsToStart} hits to start");
+            // Apply the upgrade effect
+            upgradeDatabase.ApplyUpgradeEffect(upgradeType, roguelikeManager);
+            
+            // Increment tier level for this upgrade
+            roguelikeManager.ApplyUpgrade(upgrades => upgrades.IncrementTier(upgradeType));
+            
+            // Lock out mutually exclusive upgrades (only on first purchase, tier 1)
+            if (upgrade.locksOutUpgrades != null && upgrade.locksOutUpgrades.Length > 0)
+            {
+                int currentTier = currentUpgrades.GetTierLevel(upgradeType);
+                
+                // Only lock out on first purchase (when moving from tier 0 to tier 1)
+                if (currentTier == 1)
+                {
+                    foreach (UpgradeType lockedType in upgrade.locksOutUpgrades)
+                    {
+                        roguelikeManager.ApplyUpgrade(upgrades => upgrades.LockUpgrade(lockedType));
+                        Debug.Log($"[Shop] {upgradeType} locked out {lockedType}");
+                    }
+                }
+            }
+            
+            // Track limited per wave upgrades
+            if (upgrade.limitedPerWave)
+            {
+                purchasedLimitedUpgradesThisWave.Add(upgradeType);
+                Debug.Log($"[Shop] Added {upgradeType} to limited upgrades purchased this wave");
+            }
+            
+            int newTier = currentUpgrades.GetTierLevel(upgradeType) + 1;
+            Debug.Log($"[Shop] Purchased {upgrade.displayName}! Now at tier {newTier}/{upgrade.maxTiers}");
+            
+            CloseAllDescriptions();
             RefreshShop();
         }
     }
     
-    /// <summary>
-    /// Purchase upgrade: Combo Multiplier +0.5x
-    /// </summary>
-    private void BuyComboMultiplier()
-    {
-        if (TryPurchase(comboMultiplierCost))
-        {
-            roguelikeManager.ApplyUpgrade(upgrades => upgrades.comboMultiplierIncrement += 0.5f);
-            Debug.Log($"[Shop] Purchased Combo Multiplier! Now: {currentUpgrades.comboMultiplierIncrement}x");
-            RefreshShop();
-        }
-    }
     
     /// <summary>
     /// Try to purchase something for the given cost
@@ -241,6 +701,159 @@ public class ShopManager : MonoBehaviour
             Debug.LogWarning($"[Shop] Not enough gold! Need ${cost}, have ${currentUpgrades.currentGold}");
             return false;
         }
+    }
+    
+    /// <summary>
+    /// Show a description panel and close all others
+    /// </summary>
+    private void ShowDescription(GameObject panelToShow, Button buyButton, UpgradeType upgradeType)
+    {
+        // Close all descriptions first
+        CloseAllDescriptions();
+        
+        // Show the selected panel
+        if (panelToShow != null)
+        {
+            panelToShow.SetActive(true);
+            
+            // Update the description text
+            UpdateDescriptionPanel(panelToShow, upgradeType);
+        }
+        
+        // Show the background panel
+        if (backgroundPanel != null)
+        {
+            backgroundPanel.SetActive(true);
+        }
+        
+        // Update button affordability for all buy buttons
+        UpdateButtonStates();
+    }
+    
+    /// <summary>
+    /// Update the description panel with upgrade information
+    /// </summary>
+    private void UpdateDescriptionPanel(GameObject descriptionPanel, UpgradeType upgradeType)
+    {
+        if (descriptionPanel == null) return;
+        
+        // Find the UpgradeName text component (directly under the description panel)
+        TextMeshProUGUI upgradeNameText = descriptionPanel.transform.Find("UpgradeName")?.GetComponent<TextMeshProUGUI>();
+        if (upgradeNameText != null)
+        {
+            upgradeNameText.text = GetUpgradeName(upgradeType);
+        }
+        else
+        {
+            Debug.LogWarning($"[Shop] Could not find UpgradeName in {descriptionPanel.name}");
+        }
+        
+        // Find the UpgradeDescription text component (nested under textBackground)
+        TextMeshProUGUI upgradeDescriptionText = descriptionPanel.transform.Find("TextBackground/UpgradeDescription")?.GetComponent<TextMeshProUGUI>();
+        if (upgradeDescriptionText != null)
+        {
+            upgradeDescriptionText.text = GetUpgradeDescription(upgradeType);
+        }
+        else
+        {
+            Debug.LogWarning($"[Shop] Could not find TextBackground/UpgradeDescription in {descriptionPanel.name}");
+        }
+    }
+    
+    /// <summary>
+    /// Close all description panels
+    /// </summary>
+    private void CloseAllDescriptions()
+    {
+        if (descriptionPanels != null)
+        {
+            foreach (GameObject panel in descriptionPanels)
+            {
+                if (panel != null)
+                {
+                    panel.SetActive(false);
+                }
+            }
+        }
+        
+        // Hide the background panel
+        if (backgroundPanel != null)
+        {
+            backgroundPanel.SetActive(false);
+        }
+    }
+    
+    /// <summary>
+    /// Reroll the shop to get new upgrade options
+    /// </summary>
+    private void RerollShop()
+    {
+        if (upgradeDatabase == null || roguelikeManager == null)
+        {
+            Debug.LogWarning("[Shop] Cannot reroll - missing references!");
+            return;
+        }
+        
+        // Check if player can afford the reroll
+        if (currentUpgrades == null || currentUpgrades.currentGold < rerollCost)
+        {
+            Debug.LogWarning($"[Shop] Cannot afford reroll! Need ${rerollCost}, have ${currentUpgrades?.currentGold ?? 0}");
+            return;
+        }
+        
+        // Deduct reroll cost
+        if (!TryPurchase(rerollCost))
+        {
+            return;
+        }
+        
+        // Refresh current upgrades reference after purchase
+        currentUpgrades = roguelikeManager.GetPlayerUpgrades();
+        
+        Debug.Log($"[Shop] Reroll purchased for ${rerollCost}. Remaining gold: ${currentUpgrades.currentGold}");
+        
+        // Close any open descriptions
+        CloseAllDescriptions();
+        
+        // Get absolute wave for shop (the completed wave)
+        int absoluteWave = roguelikeManager.GetAbsoluteWaveNumber();
+        int shopWave = Mathf.Max(1, absoluteWave - 1);
+        
+        // Re-randomize upgrades for the same wave
+        // Pass currentUpgrades to filter out maxed upgrades
+        currentUpgradeTypes = upgradeDatabase.GetRandomUpgrades(numberOfUpgradesToShow, shopWave, currentUpgrades, shopRandom);
+        
+        Debug.Log($"[Shop] Rerolled! Wave {shopWave} - New upgrades: {string.Join(", ", currentUpgradeTypes)}");
+        
+        // Setup upgrade buttons with the new randomized upgrades
+        for (int i = 0; i < numberOfUpgradesToShow && i < currentUpgradeTypes.Length; i++)
+        {
+            ShopUpgradeButton upgradeButton = GetUpgradeButton(i);
+            Button buyButton = GetBuyButton(i);
+            
+            if (upgradeButton != null)
+            {
+                SetupUpgradeButton(upgradeButton, currentUpgradeTypes[i], i);
+                UpdateTierVisuals(upgradeButton, currentUpgradeTypes[i]);
+            }
+            
+            if (buyButton != null)
+            {
+                SetupBuyButton(buyButton, currentUpgradeTypes[i]);
+            }
+        }
+        
+        // Refresh the currency display
+        if (currencyText != null && currentUpgrades != null)
+        {
+            int gold = currentUpgrades.currentGold;
+            currencyText.text = $"${gold}";
+            Debug.Log($"[Shop] Currency updated after reroll: ${gold}");
+        }
+        
+        // Refresh affordability
+        UpdateButtonStates();
+        UpdateAllTierVisuals();
     }
     
     /// <summary>
@@ -262,15 +875,12 @@ public class ShopUpgradeButton
     public TextMeshProUGUI nameText;
     public TextMeshProUGUI costText;
     public Image backgroundImage;
-    
-    [Header("Colors")]
-    public Color affordableColor = Color.green;
-    public Color unaffordableColor = Color.gray;
+    public Image iconImage;  // The upgrade icon/sprite
     
     private System.Action onClick;
     private int cost;
     
-    public void SetupButton(string upgradeName, int upgradeCost, System.Action onClickAction)
+    public void SetupButton(string upgradeName, int upgradeCost, Sprite upgradeIcon, System.Action onClickAction)
     {
         cost = upgradeCost;
         onClick = onClickAction;
@@ -285,23 +895,22 @@ public class ShopUpgradeButton
             costText.text = $"${cost}";
         }
         
+        if (iconImage != null && upgradeIcon != null)
+        {
+            iconImage.sprite = upgradeIcon;
+            iconImage.enabled = true;
+        }
+        else if (iconImage != null)
+        {
+            iconImage.enabled = false;
+        }
+        
         if (button != null)
         {
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => onClick?.Invoke());
-        }
-    }
-    
-    public void SetAffordable(bool affordable)
-    {
-        if (button != null)
-        {
-            button.interactable = affordable;
-        }
-        
-        if (backgroundImage != null)
-        {
-            backgroundImage.color = affordable ? affordableColor : unaffordableColor;
+            // Always keep upgrade buttons interactable (they now show descriptions instead of buying)
+            button.interactable = true;
         }
     }
 }

@@ -289,7 +289,7 @@ MonoBehaviour:
   moleImage: {fileID: 1553225719}
   moleImageComponent: {fileID: 1553225720}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -688,7 +688,7 @@ MonoBehaviour:
   moleImage: {fileID: 1933061230}
   moleImageComponent: {fileID: 1933061231}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -975,7 +975,7 @@ MonoBehaviour:
   moleImage: {fileID: 546901946}
   moleImageComponent: {fileID: 546901947}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -1112,7 +1112,7 @@ MonoBehaviour:
   moleImage: {fileID: 1266734826}
   moleImageComponent: {fileID: 1266734827}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -1340,7 +1340,7 @@ MonoBehaviour:
   moleImage: {fileID: 772173120}
   moleImageComponent: {fileID: 772173118}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -1831,7 +1831,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -348}
+  m_AnchoredPosition: {x: 0, y: -231}
   m_SizeDelta: {x: 320, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &295978647
@@ -3004,7 +3004,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Next Level
+  m_text: Play Again
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -3213,7 +3213,7 @@ MonoBehaviour:
   moleImage: {fileID: 380930845}
   moleImageComponent: {fileID: 380930846}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -3730,15 +3730,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameMode: 1
-  scoreText: {fileID: 0}
+  scoreText: {fileID: 872276361}
   timerText: {fileID: 0}
   levelText: {fileID: 0}
   livesDisplay: {fileID: 1103566073}
   instructionsPanel: {fileID: 2218403}
+  instructionsText: {fileID: 0}
   gameOverPanel: {fileID: 319818090}
   gameOverScoreText: {fileID: 654317677}
   levelCompleteText: {fileID: 2077944776}
-  nextLevelButton: {fileID: 1713905082}
+  nextLevelButton: {fileID: 0}
   levelConfiguration: {fileID: 11400000, guid: 3881e6ab0d1d9459daa624f92feea3eb, type: 2}
   startingLevel: 1
   survivalSettings:
@@ -3747,8 +3748,15 @@ MonoBehaviour:
     loseLiveOnSnakeHit: 1
     snakeGivesPoints: 0
     snakePenaltyPoints: -10
+    startMinSpawnRate: 0.5
+    startMaxSpawnRate: 0.7
+    maxActiveAnimals: 7
     increaseDifficultyOverTime: 1
-    difficultyIncreaseInterval: 10
+    difficultyIncreaseInterval: 8
+    spawnRateIncrease: 0.1
+    maxSpawnRate: 1.2
+  comboTextPrefab: {fileID: 1910458759967073614, guid: d707b6890be6d441c9cf4eae2c9a1a5c, type: 3}
+  canvasTransform: {fileID: 2080145027}
   gameDuration: 60
 --- !u!4 &736216200
 Transform:
@@ -4158,7 +4166,7 @@ MonoBehaviour:
   moleImage: {fileID: 211741465}
   moleImageComponent: {fileID: 211741466}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -4239,6 +4247,142 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 856973370}
+  m_CullTransparentMesh: 1
+--- !u!1 &872276359
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 872276360}
+  - component: {fileID: 872276362}
+  - component: {fileID: 872276361}
+  m_Layer: 5
+  m_Name: ScoreText
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &872276360
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 872276359}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2080145027}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 269, y: 1061}
+  m_SizeDelta: {x: 500, y: 80}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &872276361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 872276359}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: Score
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 64
+  m_fontSizeBase: 64
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 4
+  m_VerticalAlignment: 256
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &872276362
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 872276359}
   m_CullTransparentMesh: 1
 --- !u!1 &887248035
 GameObject:
@@ -4333,7 +4477,7 @@ MonoBehaviour:
   moleImage: {fileID: 584203759}
   moleImageComponent: {fileID: 584203760}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -5367,6 +5511,12 @@ MonoBehaviour:
   minActiveMoles: 1
   maxActiveMoles: 7
   holeCooldown: 0.8
+  maxActiveRabbits: 7
+  maxActiveMeerkats: 3
+  maxActiveSnakes: 2
+  snakeEventMinInterval: 1
+  snakeEventMaxInterval: 2.5
+  snakesPerEvent: 2
 --- !u!4 &1126789665
 Transform:
   m_ObjectHideFlags: 0
@@ -5420,7 +5570,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -62}
   m_SizeDelta: {x: 900, y: 1200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1130325966
@@ -6503,7 +6653,7 @@ MonoBehaviour:
   moleImage: {fileID: 960877407}
   moleImageComponent: {fileID: 960877408}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -6807,7 +6957,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 114}
-  m_SizeDelta: {x: 600, y: 700}
+  m_SizeDelta: {x: 600, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1385106585
 MonoBehaviour:
@@ -7113,7 +7263,7 @@ MonoBehaviour:
   moleImage: {fileID: 1111412202}
   moleImageComponent: {fileID: 1111412203}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -7213,7 +7363,7 @@ MonoBehaviour:
   moleImage: {fileID: 1825829506}
   moleImageComponent: {fileID: 1825829507}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -7313,7 +7463,7 @@ MonoBehaviour:
   moleImage: {fileID: 709760608}
   moleImageComponent: {fileID: 709760609}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -7563,7 +7713,7 @@ MonoBehaviour:
   moleImage: {fileID: 1468372011}
   moleImageComponent: {fileID: 1468372012}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -7663,7 +7813,7 @@ MonoBehaviour:
   moleImage: {fileID: 160987758}
   moleImageComponent: {fileID: 160987759}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -7988,7 +8138,7 @@ MonoBehaviour:
   moleImage: {fileID: 1729409869}
   moleImageComponent: {fileID: 1729409870}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -8387,7 +8537,7 @@ MonoBehaviour:
   moleImage: {fileID: 1947850890}
   moleImageComponent: {fileID: 1947850891}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -8562,7 +8712,7 @@ MonoBehaviour:
   moleImage: {fileID: 1787975931}
   moleImageComponent: {fileID: 1787975932}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -8955,7 +9105,7 @@ MonoBehaviour:
   moleImage: {fileID: 1936572309}
   moleImageComponent: {fileID: 1936572310}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -9251,7 +9401,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 736216199}
         m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
-        m_MethodName: LoadNextLevel
+        m_MethodName: PlayAgain
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -9316,7 +9466,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -389}
+  m_AnchoredPosition: {x: 0, y: -319}
   m_SizeDelta: {x: 400, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1729409868
@@ -9637,7 +9787,7 @@ MonoBehaviour:
   moleImage: {fileID: 1291512146}
   moleImageComponent: {fileID: 1291512147}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -9812,7 +9962,7 @@ MonoBehaviour:
   moleImage: {fileID: 1207667463}
   moleImageComponent: {fileID: 1207667464}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -10005,7 +10155,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -528}
+  m_AnchoredPosition: {x: 0, y: -458}
   m_SizeDelta: {x: 400, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1855534078
@@ -10720,7 +10870,7 @@ MonoBehaviour:
   moleImage: {fileID: 833287736}
   moleImageComponent: {fileID: 833287737}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -10895,7 +11045,7 @@ MonoBehaviour:
   moleImage: {fileID: 1737811838}
   moleImageComponent: {fileID: 1737811839}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -11151,7 +11301,7 @@ MonoBehaviour:
   moleImage: {fileID: 132751825}
   moleImageComponent: {fileID: 132751826}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -11402,6 +11552,7 @@ RectTransform:
   - {fileID: 746652825}
   - {fileID: 1130325965}
   - {fileID: 1103566070}
+  - {fileID: 872276360}
   - {fileID: 2218406}
   - {fileID: 319818091}
   m_Father: {fileID: 0}
@@ -11604,7 +11755,7 @@ MonoBehaviour:
   moleImage: {fileID: 1419609595}
   moleImageComponent: {fileID: 1419609596}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3
@@ -11704,7 +11855,7 @@ MonoBehaviour:
   moleImage: {fileID: 1512220445}
   moleImageComponent: {fileID: 1512220446}
   audioSource: {fileID: 0}
-  animalDatabase: {fileID: 11400000, guid: 2d4d63772eed741289203b0698ce9d8e, type: 2}
+  animalDatabase: {fileID: 11400000, guid: 238ff52c3ab6f4b37aaa8cbc251e54cd, type: 2}
   animalDataArray: []
   popUpDistance: 100
   animationDuration: 0.3

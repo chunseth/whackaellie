@@ -30,6 +30,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     private Coroutine whackCoroutine;
     private AnimalData currentAnimal;
     private bool forceSnakeSpawn = false;  // Set by spawner for snake events
+    private float timeWhenFullyVisible = 0f;  // Timestamp when animal finished popping up
 
     private void Start()
     {
@@ -277,39 +278,107 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         else if (RoguelikeManager.Instance != null)
         {
             var waveData = RoguelikeManager.Instance.GetCurrentWaveData();
+            var playerUpgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
             
             if (waveData != null && waveData.allowedAnimals != null && waveData.allowedAnimals.Count > 0)
             {
                 bool canSpawnRabbit = spawner != null && spawner.CanSpawnRabbit();
                 bool canSpawnMeerkat = spawner != null && spawner.CanSpawnMeerkat();
+                bool canSpawnFox = spawner != null && spawner.CanSpawnFox();
+                bool canSpawnBadger = spawner != null && spawner.CanSpawnBadger();
                 
-                // Check what animals are allowed
-                bool hasMeerkats = waveData.allowedAnimals.Contains(AnimalType.Meerkat);
-                
-                if (hasMeerkats)
+                // Optimization: Start at the highest guaranteed conversion tier
+                // If all conversions are at 100%, spawn badgers directly
+                if (playerUpgrades != null && 
+                    playerUpgrades.rabbitToMeerkatConversion >= 1.0f &&
+                    playerUpgrades.meerkatToFoxConversion >= 1.0f &&
+                    playerUpgrades.foxToBadgerConversion >= 1.0f)
                 {
-                    // Round 2: Use wave-specific probability
-                    float meerkatChance = waveData.meerkatSpawnChance;
-                    float roll = Random.value;
-                    
-                    if (roll < meerkatChance && canSpawnMeerkat)
-                    {
-                        selectedType = AnimalType.Meerkat;
-                    }
-                    else if (canSpawnRabbit)
-                    {
-                        selectedType = AnimalType.Rabbit;
-                    }
-                    else if (canSpawnMeerkat)
-                    {
-                        // Rabbit limit hit, spawn meerkat
-                        selectedType = AnimalType.Meerkat;
-                    }
+                    selectedType = AnimalType.Badger;
+                }
+                // If rabbit→meerkat and meerkat→fox are 100%, spawn foxes directly
+                else if (playerUpgrades != null &&
+                         playerUpgrades.rabbitToMeerkatConversion >= 1.0f &&
+                         playerUpgrades.meerkatToFoxConversion >= 1.0f)
+                {
+                    selectedType = AnimalType.Fox;
+                }
+                // If rabbit→meerkat is 100%, spawn meerkats directly
+                else if (playerUpgrades != null && playerUpgrades.rabbitToMeerkatConversion >= 1.0f)
+                {
+                    selectedType = AnimalType.Meerkat;
                 }
                 else
                 {
-                    // Just rabbits (snakes handled by parallel system)
+                    // Default to rabbit spawn
                     selectedType = AnimalType.Rabbit;
+                }
+                
+                // Apply partial conversions if not at 100%
+                // Step 1: Check if we should convert rabbit to meerkat (if not already starting as meerkat)
+                if (selectedType == AnimalType.Rabbit && playerUpgrades != null && playerUpgrades.rabbitToMeerkatConversion > 0f)
+                {
+                    float roll = Random.value;
+                    
+                    // If roll succeeds and we can spawn meerkat, convert to meerkat
+                    if (roll < playerUpgrades.rabbitToMeerkatConversion && canSpawnMeerkat)
+                    {
+                        selectedType = AnimalType.Meerkat;
+                    }
+                    else if (!canSpawnRabbit && canSpawnMeerkat)
+                    {
+                        // Rabbit limit hit but meerkats available, spawn meerkat
+                        selectedType = AnimalType.Meerkat;
+                    }
+                }
+                
+                // Step 2: Check if we should convert meerkat to fox (if not already starting as fox)
+                if (selectedType == AnimalType.Meerkat && playerUpgrades != null && 
+                    playerUpgrades.meerkatToFoxConversion > 0f && playerUpgrades.meerkatToFoxConversion < 1.0f)
+                {
+                    float roll = Random.value;
+                    
+                    // If roll succeeds and we can spawn fox, convert to fox
+                    if (roll < playerUpgrades.meerkatToFoxConversion && canSpawnFox)
+                    {
+                        selectedType = AnimalType.Fox;
+                    }
+                }
+                
+                // Step 3: Check if we should convert fox to badger (if not already starting as badger)
+                if (selectedType == AnimalType.Fox && playerUpgrades != null && 
+                    playerUpgrades.foxToBadgerConversion > 0f && playerUpgrades.foxToBadgerConversion < 1.0f)
+                {
+                    float roll = Random.value;
+                    
+                    // If roll succeeds and we can spawn badger, convert to badger
+                    if (roll < playerUpgrades.foxToBadgerConversion && canSpawnBadger)
+                    {
+                        selectedType = AnimalType.Badger;
+                    }
+                }
+                
+                // Fallback: If we can't spawn the selected type, try others (in order of value)
+                if (selectedType == AnimalType.Badger && !canSpawnBadger)
+                {
+                    if (canSpawnFox) selectedType = AnimalType.Fox;
+                    else if (canSpawnMeerkat) selectedType = AnimalType.Meerkat;
+                    else selectedType = AnimalType.Rabbit;
+                }
+                else if (selectedType == AnimalType.Fox && !canSpawnFox)
+                {
+                    if (canSpawnMeerkat) selectedType = AnimalType.Meerkat;
+                    else selectedType = AnimalType.Rabbit;
+                }
+                else if (selectedType == AnimalType.Meerkat && !canSpawnMeerkat)
+                {
+                    selectedType = canSpawnRabbit ? AnimalType.Rabbit : AnimalType.Fox;
+                }
+                else if (selectedType == AnimalType.Rabbit && !canSpawnRabbit)
+                {
+                    if (canSpawnMeerkat) selectedType = AnimalType.Meerkat;
+                    else if (canSpawnFox) selectedType = AnimalType.Fox;
+                    else if (canSpawnBadger) selectedType = AnimalType.Badger;
                 }
             }
         }
@@ -354,6 +423,14 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
             else if (selectedType == AnimalType.Meerkat)
             {
                 spawner.OnMeerkatSpawned();
+            }
+            else if (selectedType == AnimalType.Fox)
+            {
+                spawner.OnFoxSpawned();
+            }
+            else if (selectedType == AnimalType.Badger)
+            {
+                spawner.OnBadgerSpawned();
             }
         }
         
@@ -446,6 +523,9 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         // Slide up
         yield return StartCoroutine(SlideMole(hiddenPosition, visiblePosition));
         isVisible = true;
+        
+        // Record the time when animal becomes fully visible (for perfect hit tracking)
+        timeWhenFullyVisible = Time.time;
         
         // Wait for animal-specific visible duration (or fallback to default)
         float waitTime = (currentAnimal != null) ? currentAnimal.visibleDuration : visibleDuration;
@@ -548,7 +628,12 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
             if (currentAnimal != null)
             {
                 RectTransform thisRect = GetComponent<RectTransform>();
-                RoguelikeManager.Instance.OnAnimalHit(currentAnimal.animalType, thisRect);
+                
+                // Check if this was a perfect hit (within 0.4s of becoming visible)
+                float timeSinceVisible = Time.time - timeWhenFullyVisible;
+                bool isPerfectHit = timeSinceVisible <= 0.4f;
+                
+                RoguelikeManager.Instance.OnAnimalHit(currentAnimal.animalType, thisRect, isPerfectHit);
             }
         }
         // Check if this is a snake in survival mode
@@ -565,8 +650,9 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
                 
                 if (survivalSettings != null && survivalSettings.loseLiveOnSnakeHit)
                 {
-                    // Lose a life for hitting snake
-                    GameManager.Instance.LoseLife();
+                    // Lose a life for hitting snake with floating text
+                    RectTransform thisRect = GetComponent<RectTransform>();
+                    GameManager.Instance.OnSnakeHit(thisRect);
                     
                     // Optionally give penalty points
                     if (survivalSettings.snakeGivesPoints)
@@ -636,7 +722,9 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
                 
                 if (survivalSettings != null && survivalSettings.loseLiveOnMiss)
                 {
-                    GameManager.Instance.LoseLife();
+                    // Lose a life with floating text feedback
+                    RectTransform thisRect = GetComponent<RectTransform>();
+                    GameManager.Instance.OnAnimalMissed(thisRect);
                     Debug.Log($"{currentAnimal?.animalName ?? "Animal"} escaped! Lost a life.");
                 }
             }
@@ -695,6 +783,14 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
                 else if (currentAnimal.animalType == AnimalType.Meerkat)
                 {
                     spawner.OnMeerkatHidden();
+                }
+                else if (currentAnimal.animalType == AnimalType.Fox)
+                {
+                    spawner.OnFoxHidden();
+                }
+                else if (currentAnimal.animalType == AnimalType.Badger)
+                {
+                    spawner.OnBadgerHidden();
                 }
             }
         }

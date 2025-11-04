@@ -14,9 +14,10 @@ public class MoleSpawner : MonoBehaviour
     [SerializeField] private int maxActiveMoles = 9;  // Total animals (rabbits + snakes)
     [SerializeField] private float holeCooldown = 1f;
     
-    // Runtime spawn settings (configured by RoguelikeManager upgrades)
+    // Runtime spawn settings (configured by RoguelikeManager upgrades or GameManager survival mode)
     private float currentMinSpawnInterval = 0.5f;
     private float currentMaxSpawnInterval = 1.5f;
+    private int configuredMaxActiveAnimals = -1;  // -1 means use default logic
     
     [Header("Animal Type Limits")]
     [SerializeField] private int maxActiveRabbits = 7;    // Max rabbits at once
@@ -35,6 +36,8 @@ public class MoleSpawner : MonoBehaviour
     private int currentActiveSnakes = 0;
     private int currentActiveRabbits = 0;
     private int currentActiveMeerkats = 0;
+    private int currentActiveFoxes = 0;
+    private int currentActiveBadgers = 0;
 
     private void Start()
     {
@@ -127,11 +130,18 @@ public class MoleSpawner : MonoBehaviour
             yield return new WaitForSeconds(waitTime);
 
             // Count currently active regular animals (not snakes)
-            int currentRegularAnimals = currentActiveRabbits + currentActiveMeerkats;
+            int currentRegularAnimals = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
             
-            // Get max active animals from upgrades (if in roguelike mode)
+            // Get max active animals from configuration
             int maxRegularAnimals = 7;  // Default
-            if (RoguelikeManager.Instance != null)
+            
+            // Check if manually configured (survival mode or other modes)
+            if (configuredMaxActiveAnimals > 0)
+            {
+                maxRegularAnimals = configuredMaxActiveAnimals;
+            }
+            // Otherwise check roguelike manager
+            else if (RoguelikeManager.Instance != null)
             {
                 var upgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
                 if (upgrades != null)
@@ -246,42 +256,114 @@ public class MoleSpawner : MonoBehaviour
     
     /// <summary>
     /// Called by MoleController to check if a rabbit can spawn
+    /// Uses total maxActiveAnimals cap instead of per-type caps
     /// </summary>
     public bool CanSpawnRabbit()
     {
-        int limit = maxActiveRabbits;
+        // Check total regular animals against maxActiveAnimals
+        int maxRegularAnimals = maxActiveRabbits + maxActiveMeerkats; // Default for non-roguelike
         
-        // Check for wave-specific limits in roguelike mode
-        if (RoguelikeManager.Instance != null)
+        // Check if manually configured (survival mode or other modes)
+        if (configuredMaxActiveAnimals > 0)
         {
-            var waveData = RoguelikeManager.Instance.GetCurrentWaveData();
-            if (waveData != null)
+            maxRegularAnimals = configuredMaxActiveAnimals;
+        }
+        // Otherwise check roguelike manager
+        else if (RoguelikeManager.Instance != null)
+        {
+            var upgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
+            if (upgrades != null)
             {
-                limit = waveData.maxRabbits;
+                maxRegularAnimals = upgrades.maxActiveAnimals;
             }
         }
         
-        return currentActiveRabbits < limit;
+        int currentRegularAnimals = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+        return currentRegularAnimals < maxRegularAnimals;
     }
     
     /// <summary>
     /// Called by MoleController to check if a meerkat can spawn
+    /// Uses total maxActiveAnimals cap instead of per-type caps
     /// </summary>
     public bool CanSpawnMeerkat()
     {
-        int limit = maxActiveMeerkats;
+        // Check total regular animals against maxActiveAnimals
+        int maxRegularAnimals = maxActiveRabbits + maxActiveMeerkats; // Default for non-roguelike
         
-        // Check for wave-specific limits in roguelike mode
-        if (RoguelikeManager.Instance != null)
+        // Check if manually configured (survival mode or other modes)
+        if (configuredMaxActiveAnimals > 0)
         {
-            var waveData = RoguelikeManager.Instance.GetCurrentWaveData();
-            if (waveData != null)
+            maxRegularAnimals = configuredMaxActiveAnimals;
+        }
+        // Otherwise check roguelike manager
+        else if (RoguelikeManager.Instance != null)
+        {
+            var upgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
+            if (upgrades != null)
             {
-                limit = waveData.maxMeerkats;
+                maxRegularAnimals = upgrades.maxActiveAnimals;
             }
         }
         
-        return currentActiveMeerkats < limit;
+        int currentRegularAnimals = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+        return currentRegularAnimals < maxRegularAnimals;
+    }
+    
+    /// <summary>
+    /// Called by MoleController to check if a fox can spawn
+    /// Uses total maxActiveAnimals cap instead of per-type caps
+    /// </summary>
+    public bool CanSpawnFox()
+    {
+        // Check total regular animals against maxActiveAnimals
+        int maxRegularAnimals = maxActiveRabbits + maxActiveMeerkats; // Default for non-roguelike
+        
+        // Check if manually configured (survival mode or other modes)
+        if (configuredMaxActiveAnimals > 0)
+        {
+            maxRegularAnimals = configuredMaxActiveAnimals;
+        }
+        // Otherwise check roguelike manager
+        else if (RoguelikeManager.Instance != null)
+        {
+            var upgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
+            if (upgrades != null)
+            {
+                maxRegularAnimals = upgrades.maxActiveAnimals;
+            }
+        }
+        
+        int currentRegularAnimals = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+        return currentRegularAnimals < maxRegularAnimals;
+    }
+    
+    /// <summary>
+    /// Called by MoleController to check if a badger can spawn
+    /// Uses total maxActiveAnimals cap instead of per-type caps
+    /// </summary>
+    public bool CanSpawnBadger()
+    {
+        // Check total regular animals against maxActiveAnimals
+        int maxRegularAnimals = maxActiveRabbits + maxActiveMeerkats; // Default for non-roguelike
+        
+        // Check if manually configured (survival mode or other modes)
+        if (configuredMaxActiveAnimals > 0)
+        {
+            maxRegularAnimals = configuredMaxActiveAnimals;
+        }
+        // Otherwise check roguelike manager
+        else if (RoguelikeManager.Instance != null)
+        {
+            var upgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
+            if (upgrades != null)
+            {
+                maxRegularAnimals = upgrades.maxActiveAnimals;
+            }
+        }
+        
+        int currentRegularAnimals = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+        return currentRegularAnimals < maxRegularAnimals;
     }
     
     /// <summary>
@@ -336,7 +418,41 @@ public class MoleSpawner : MonoBehaviour
     }
     
     /// <summary>
-    /// Set spawn intervals (called by RoguelikeManager when upgrades change)
+    /// Called by MoleController when a fox pops up
+    /// </summary>
+    public void OnFoxSpawned()
+    {
+        currentActiveFoxes++;
+    }
+    
+    /// <summary>
+    /// Called by MoleController when a fox goes down
+    /// </summary>
+    public void OnFoxHidden()
+    {
+        currentActiveFoxes--;
+        if (currentActiveFoxes < 0) currentActiveFoxes = 0;
+    }
+    
+    /// <summary>
+    /// Called by MoleController when a badger pops up
+    /// </summary>
+    public void OnBadgerSpawned()
+    {
+        currentActiveBadgers++;
+    }
+    
+    /// <summary>
+    /// Called by MoleController when a badger goes down
+    /// </summary>
+    public void OnBadgerHidden()
+    {
+        currentActiveBadgers--;
+        if (currentActiveBadgers < 0) currentActiveBadgers = 0;
+    }
+    
+    /// <summary>
+    /// Set spawn intervals (called by RoguelikeManager or GameManager when spawn rates change)
     /// </summary>
     public void SetSpawnIntervals(float minSpawnRate, float maxSpawnRate)
     {
@@ -359,6 +475,15 @@ public class MoleSpawner : MonoBehaviour
         }
         
         Debug.Log($"[Spawner] Spawn rate: {minSpawnRate}-{maxSpawnRate}/sec → Intervals: {currentMinSpawnInterval:F2}s - {currentMaxSpawnInterval:F2}s");
+    }
+    
+    /// <summary>
+    /// Set max active animals cap (called by GameManager for survival mode)
+    /// </summary>
+    public void SetMaxActiveAnimals(int maxAnimals)
+    {
+        configuredMaxActiveAnimals = maxAnimals;
+        Debug.Log($"[Spawner] Max active animals set to: {maxAnimals}");
     }
 
     /// <summary>

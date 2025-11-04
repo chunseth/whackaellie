@@ -28,6 +28,10 @@ public class GameManager : MonoBehaviour
 
     [Header("Survival Mode Settings")]
     [SerializeField] private SurvivalModeSettings survivalSettings;
+    
+    [Header("Floating Text (Survival Mode)")]
+    [SerializeField] private GameObject comboTextPrefab;
+    [SerializeField] private Transform canvasTransform;
 
     [Header("Game Settings (Fallback)")]
     [SerializeField] private float gameDuration = 60f;
@@ -38,6 +42,11 @@ public class GameManager : MonoBehaviour
     private float timeRemaining;
     private bool isGameActive = false;
     private LevelData activeLevelData;
+    
+    // Survival mode difficulty tracking
+    private float survivalDifficultyTimer = 0f;
+    private float currentMinSpawnRate = 1.0f;
+    private float currentMaxSpawnRate = 2.0f;
 
     private void Awake()
     {
@@ -54,6 +63,16 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        // Find canvas if not assigned (for floating text)
+        if (canvasTransform == null)
+        {
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas != null)
+            {
+                canvasTransform = canvas.transform;
+            }
+        }
+        
         // Initialize based on game mode
         if (gameMode == GameMode.LevelMode)
         {
@@ -214,6 +233,18 @@ public class GameManager : MonoBehaviour
                 timeRemaining += Time.deltaTime;
                 UpdateTimerUI();
                 
+                // Handle difficulty scaling
+                if (survivalSettings != null && survivalSettings.increaseDifficultyOverTime)
+                {
+                    survivalDifficultyTimer += Time.deltaTime;
+                    
+                    if (survivalDifficultyTimer >= survivalSettings.difficultyIncreaseInterval)
+                    {
+                        survivalDifficultyTimer = 0f;
+                        IncreaseSurvivalDifficulty();
+                    }
+                }
+                
                 // Check if player is out of lives
                 if (currentLives <= 0)
                 {
@@ -247,6 +278,15 @@ public class GameManager : MonoBehaviour
         {
             timeRemaining = 0; // Count up in survival mode
             currentLives = survivalSettings != null ? survivalSettings.startingLives : 3;
+            
+            // Initialize survival mode spawn rates
+            survivalDifficultyTimer = 0f;
+            if (survivalSettings != null)
+            {
+                currentMinSpawnRate = survivalSettings.startMinSpawnRate;
+                currentMaxSpawnRate = survivalSettings.startMaxSpawnRate;
+                Debug.Log($"[Survival] Starting spawn rate: {currentMinSpawnRate}-{currentMaxSpawnRate} animals/sec");
+            }
         }
         
         UpdateScoreUI();
@@ -257,6 +297,14 @@ public class GameManager : MonoBehaviour
         MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
         if (spawner != null)
         {
+            // Configure spawner based on game mode
+            if (gameMode == GameMode.SurvivalMode && survivalSettings != null)
+            {
+                spawner.SetSpawnIntervals(currentMinSpawnRate, currentMaxSpawnRate);
+                spawner.SetMaxActiveAnimals(survivalSettings.maxActiveAnimals);
+                Debug.Log($"[Survival] Configured spawner - Rate: {currentMinSpawnRate}-{currentMaxSpawnRate}/sec, Max animals: {survivalSettings.maxActiveAnimals}");
+            }
+            
             spawner.StartSpawning();
         }
     }
@@ -541,6 +589,63 @@ public class GameManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Called when an animal is missed in survival mode (with floating text support)
+    /// </summary>
+    public void OnAnimalMissed(RectTransform animalRectTransform)
+    {
+        if (gameMode == GameMode.SurvivalMode && isGameActive)
+        {
+            // Spawn "Miss!" text above the animal
+            SpawnFloatingText("Miss!", animalRectTransform);
+            
+            // Lose a life
+            LoseLife();
+        }
+    }
+    
+    /// <summary>
+    /// Called when a snake is hit in survival mode (with floating text support)
+    /// </summary>
+    public void OnSnakeHit(RectTransform animalRectTransform)
+    {
+        if (gameMode == GameMode.SurvivalMode && isGameActive)
+        {
+            // Spawn "Ouch!" text above the snake
+            SpawnFloatingText("Ouch!", animalRectTransform);
+            
+            // Lose a life
+            LoseLife();
+        }
+    }
+    
+    /// <summary>
+    /// Spawn floating text above an animal (for survival mode feedback)
+    /// </summary>
+    private void SpawnFloatingText(string text, RectTransform animalRectTransform)
+    {
+        if (comboTextPrefab == null || canvasTransform == null || animalRectTransform == null)
+        {
+            Debug.LogWarning($"[Survival] Cannot spawn floating text '{text}' - missing prefab or canvas reference");
+            return;
+        }
+        
+        // Instantiate and initialize
+        GameObject floatingTextObj = Instantiate(comboTextPrefab, canvasTransform);
+        FloatingComboText floatingText = floatingTextObj.GetComponent<FloatingComboText>();
+        
+        if (floatingText != null)
+        {
+            floatingText.InitializeFromUI(text, animalRectTransform, canvasTransform);
+            Debug.Log($"[Survival] Spawned floating text '{text}' above {animalRectTransform.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[Survival] FloatingComboText component not found on prefab!");
+            Destroy(floatingTextObj);
+        }
+    }
+    
+    /// <summary>
     /// Get current game mode
     /// </summary>
     public GameMode GetGameMode()
@@ -557,11 +662,43 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Increases difficulty in survival mode by increasing spawn rates
+    /// </summary>
+    private void IncreaseSurvivalDifficulty()
+    {
+        if (survivalSettings == null) return;
+        
+        // Increase spawn rates
+        currentMinSpawnRate += survivalSettings.spawnRateIncrease;
+        currentMaxSpawnRate += survivalSettings.spawnRateIncrease;
+        
+        // Cap at maximum
+        currentMinSpawnRate = Mathf.Min(currentMinSpawnRate, survivalSettings.maxSpawnRate);
+        currentMaxSpawnRate = Mathf.Min(currentMaxSpawnRate, survivalSettings.maxSpawnRate);
+        
+        // Apply to spawner
+        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        if (spawner != null)
+        {
+            spawner.SetSpawnIntervals(currentMinSpawnRate, currentMaxSpawnRate);
+            Debug.Log($"[Survival] Difficulty increased! New spawn rate: {currentMinSpawnRate:F2}-{currentMaxSpawnRate:F2} animals/sec (Time: {Mathf.FloorToInt(timeRemaining)}s)");
+        }
+    }
+
+    /// <summary>
     /// Returns whether the game is currently active
     /// </summary>
     public bool IsGameActive()
     {
         return isGameActive;
+    }
+    
+    /// <summary>
+    /// Get current survival spawn rates (for debugging/UI)
+    /// </summary>
+    public (float min, float max) GetCurrentSpawnRates()
+    {
+        return (currentMinSpawnRate, currentMaxSpawnRate);
     }
 }
 

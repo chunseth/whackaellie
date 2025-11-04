@@ -173,7 +173,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      2ptMeerkatShopButton_0: 1098472562253055758
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
