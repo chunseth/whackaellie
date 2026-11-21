@@ -29,6 +29,11 @@ public class ShopManager : MonoBehaviour
     [SerializeField] private Sprite tierEmptySprite;
     [SerializeField] private Sprite tierBoughtSprite;
     
+    [Header("Audio")]
+    [SerializeField] private AudioClip cashRegisterSound;
+    [SerializeField] private AudioClip buttonPressSound;
+    private AudioSource audioSource;
+    
     [Header("Description Panels")]
     [SerializeField] private GameObject upgradeDescription1;
     [SerializeField] private GameObject upgradeDescription2;
@@ -65,6 +70,19 @@ public class ShopManager : MonoBehaviour
         if (roguelikeManager == null)
         {
             roguelikeManager = FindObjectOfType<RoguelikeManager>();
+        }
+        
+        // Initialize AudioSource for sound effects
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+            // Configure AudioSource for sound effects
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D sound
         }
         
         // Load upgrade database from Resources if needed (for builds)
@@ -647,6 +665,9 @@ public class ShopManager : MonoBehaviour
         // Try to purchase
         if (TryPurchase(cost))
         {
+            // Play cash register sound before applying the upgrade
+            PlayCashRegisterSound();
+            
             // Apply the upgrade effect
             upgradeDatabase.ApplyUpgradeEffect(upgradeType, roguelikeManager);
             
@@ -857,10 +878,35 @@ public class ShopManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Play cash register sound effect
+    /// </summary>
+    private void PlayCashRegisterSound()
+    {
+        if (audioSource != null && cashRegisterSound != null)
+        {
+            audioSource.PlayOneShot(cashRegisterSound);
+        }
+    }
+    
+    /// <summary>
+    /// Play button press sound effect
+    /// </summary>
+    private void PlayButtonPressSound()
+    {
+        if (audioSource != null && buttonPressSound != null)
+        {
+            audioSource.PlayOneShot(buttonPressSound);
+        }
+    }
+    
+    /// <summary>
     /// Continue to next wave
     /// </summary>
     private void ContinueToNextWave()
     {
+        // Play button press sound
+        PlayButtonPressSound();
+        
         roguelikeManager.CloseShop();
     }
 }

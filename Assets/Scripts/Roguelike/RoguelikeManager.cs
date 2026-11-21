@@ -40,6 +40,12 @@ public class RoguelikeManager : MonoBehaviour
     [SerializeField] private GameObject comboTextPrefab;
     [SerializeField] private Transform canvasTransform;
     
+    [Header("Audio")]
+    [SerializeField] private AudioClip gameStartSound;
+    [SerializeField] private AudioClip buttonPressSound;
+    [SerializeField] private AudioClip coinGlimmerSound;
+    private AudioSource audioSource;
+    
     [Header("Game State")]
     [SerializeField] private int currentRound = 1;
     [SerializeField] private int currentWave = 1;
@@ -128,6 +134,8 @@ public class RoguelikeManager : MonoBehaviour
                 comboSystem = comboObj.AddComponent<ComboSystem>();
             }
         }
+
+        EnsurePlaytestTelemetry();
         
         // Initialize combo system
         comboSystem.Initialize(playerUpgrades);
@@ -140,6 +148,19 @@ public class RoguelikeManager : MonoBehaviour
             {
                 canvasTransform = canvas.transform;
             }
+        }
+        
+        // Get or add AudioSource component for sound effects
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+            // Configure AudioSource for sound effects
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D sound
         }
         
         // Show start panel
@@ -212,6 +233,9 @@ public class RoguelikeManager : MonoBehaviour
     /// </summary>
     public void StartGame()
     {
+        // Play button press sound
+        PlayButtonPressSound();
+        
         currentRound = 1;
         currentWave = 1;
         currentScore = 0;
@@ -229,6 +253,12 @@ public class RoguelikeManager : MonoBehaviour
         }
         
         comboSystem.Initialize(playerUpgrades);
+        
+        // Play game start sound effect
+        if (audioSource != null && gameStartSound != null)
+        {
+            audioSource.PlayOneShot(gameStartSound);
+        }
         
         if (startPanel != null)
         {
@@ -251,6 +281,12 @@ public class RoguelikeManager : MonoBehaviour
     {
         // Generate wave data
         currentWaveData = GenerateWaveData(currentRound, currentWave);
+
+        EnsurePlaytestTelemetry();
+        if (currentWave == 1)
+        {
+            PlaytestTelemetry.Instance?.BeginRound(currentRound, playerUpgrades);
+        }
         
         // Force hide any lingering animals from previous wave
         if (moleSpawner != null)
@@ -318,6 +354,9 @@ public class RoguelikeManager : MonoBehaviour
             ConfigureSpawner();
             moleSpawner.StartSpawning();
         }
+
+        int maxActive = playerUpgrades != null ? playerUpgrades.maxActiveAnimals : 7;
+        PlaytestTelemetry.Instance?.BeginWave(currentRound, currentWave, maxActive);
         
         Debug.Log($"[Roguelike] Wave gameplay started!");
     }
@@ -703,10 +742,23 @@ public class RoguelikeManager : MonoBehaviour
             countdownPanel.SetActive(false);
         }
         
+        PlaytestTelemetry.Instance?.PrepareWaveEnd();
+
         // Stop spawning and force hide all active animals
         if (moleSpawner != null)
         {
             moleSpawner.StopSpawning();
+        }
+
+        PlaytestTelemetry.Instance?.EndWave(success, currentScore);
+
+        if (!success)
+        {
+            PlaytestTelemetry.Instance?.EndRound(false);
+        }
+        else if (currentWave == 3)
+        {
+            PlaytestTelemetry.Instance?.EndRound(true);
         }
         
         if (success)
@@ -737,17 +789,30 @@ public class RoguelikeManager : MonoBehaviour
         {
             rewardPanel.SetActive(true);
             
-            // Show combo count and gold amount
+            // Show combo count immediately, but delay gold earned display
             if (rewardGoldText != null)
             {
-                rewardGoldText.text = $"Combos: {combosCompleted}\nGold Earned: ${goldEarned}";
+                rewardGoldText.text = $"Combos: {combosCompleted}\nGold Earned: $0";
             }
             
-            // Show repeated $ symbols for visual appeal
+            // Start with empty dollar symbols - will be filled by coroutine
             if (rewardGoldSymbolsText != null)
             {
-                string dollars = new string('$', goldEarned);
-                rewardGoldSymbolsText.text = dollars;
+                rewardGoldSymbolsText.text = "";
+            }
+        }
+        
+        // Play coin glimmer sound for each gold earned and update display progressively
+        if (goldEarned > 0)
+        {
+            StartCoroutine(PlayCoinGlimmerSounds(goldEarned, combosCompleted));
+        }
+        else
+        {
+            // No gold earned, show immediately
+            if (rewardGoldText != null)
+            {
+                rewardGoldText.text = $"Combos: {combosCompleted}\nGold Earned: $0";
             }
         }
     }
@@ -780,6 +845,9 @@ public class RoguelikeManager : MonoBehaviour
                 return;
             }
         }
+        
+        // Play button press sound
+        PlayButtonPressSound();
         
         ShowShop();
     }
@@ -1232,6 +1300,9 @@ public class RoguelikeManager : MonoBehaviour
     {
         if (isPaused)
         {
+            // Play button press sound
+            PlayButtonPressSound();
+            
             isPaused = false;
             Time.timeScale = 1f;
             
@@ -1250,12 +1321,70 @@ public class RoguelikeManager : MonoBehaviour
     /// </summary>
     public void ReturnToMainMenu()
     {
+        // Play button press sound
+        PlayButtonPressSound();
+        
         // Make sure time scale is restored
         Time.timeScale = 1f;
         isPaused = false;
         
         Debug.Log("[Roguelike] Returning to Main Menu");
         SceneManager.LoadScene("MainMenuScene");
+    }
+    
+    /// <summary>
+    /// Play button press sound effect
+    /// </summary>
+    private void PlayButtonPressSound()
+    {
+        if (audioSource != null && buttonPressSound != null)
+        {
+            audioSource.PlayOneShot(buttonPressSound);
+        }
+    }
+    
+    /// <summary>
+    /// Play coin glimmer sound multiple times (once per gold earned) and update display progressively
+    /// </summary>
+    private IEnumerator PlayCoinGlimmerSounds(int goldEarned, int combosCompleted)
+    {
+        if (audioSource == null || coinGlimmerSound == null) yield break;
+        
+        // Play the sound multiple times with a small delay between each
+        // Display one $ symbol per sound and increment the gold count
+        for (int i = 0; i < goldEarned; i++)
+        {
+            // Play the glimmer sound
+            audioSource.PlayOneShot(coinGlimmerSound);
+            
+            // Current gold count (i + 1 because we start at 0)
+            int currentGold = i + 1;
+            
+            // Update gold earned text to show current count
+            if (rewardGoldText != null)
+            {
+                rewardGoldText.text = $"Combos: {combosCompleted}\nGold Earned: ${currentGold}";
+            }
+            
+            // Add one $ symbol to the display
+            if (rewardGoldSymbolsText != null)
+            {
+                rewardGoldSymbolsText.text += "$";
+            }
+            
+            // Wait a bit between each sound (adjust delay as needed)
+            // Using 0.1 seconds between sounds - can be adjusted for better feel
+            yield return new WaitForSeconds(0.1f);
+        }
+    }
+
+    private void EnsurePlaytestTelemetry()
+    {
+        if (PlaytestTelemetry.Instance == null)
+        {
+            GameObject telemetryObj = new GameObject("PlaytestTelemetry");
+            telemetryObj.AddComponent<PlaytestTelemetry>();
+        }
     }
 }
 

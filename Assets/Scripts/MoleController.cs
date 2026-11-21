@@ -31,6 +31,8 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     private AnimalData currentAnimal;
     private bool forceSnakeSpawn = false;  // Set by spawner for snake events
     private float timeWhenFullyVisible = 0f;  // Timestamp when animal finished popping up
+    private float telemetrySpawnTime = 0f;
+    private bool telemetrySpawnLogged = false;
 
     private void Start()
     {
@@ -103,6 +105,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
             SelectRandomAnimal();
             wasHit = false;  // Reset hit status
             forceSnakeSpawn = false;  // Reset flag
+            telemetrySpawnLogged = false;
             
             if (popUpCoroutine != null)
             {
@@ -121,6 +124,47 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     {
         forceSnakeSpawn = true;
         PopUp();
+    }
+
+    private void LogSpawnIfNeeded()
+    {
+        if (telemetrySpawnLogged || currentAnimal == null) return;
+
+        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        if (spawner == null) return;
+
+        int activeAfter = spawner.GetActiveRegularCount();
+        int maxAllowed = spawner.GetMaxActiveAllowed();
+        int activeBefore = Mathf.Max(0, activeAfter - 1);
+
+        spawner.NotifyAnimalSpawned(currentAnimal.animalType, activeAfter, maxAllowed, activeBefore);
+        telemetrySpawnLogged = true;
+    }
+
+    private void LogAnimalOutcome(string outcome, bool countsTowardAccuracy)
+    {
+        if (currentAnimal == null || PlaytestTelemetry.Instance == null) return;
+        if (telemetrySpawnTime <= 0f && outcome != "RoundEnded") return;
+
+        float outcomeTime = PlaytestTelemetry.Instance.WaveElapsed;
+        float lifetime = telemetrySpawnTime > 0f ? outcomeTime - telemetrySpawnTime : 0f;
+
+        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        int activeAtOutcome = spawner != null ? spawner.CountVisibleUnhitAnimals() : 0;
+
+        PlaytestTelemetry.Instance.LogAnimalOutcome(
+            telemetrySpawnTime,
+            outcomeTime,
+            currentAnimal.animalType.ToString(),
+            outcome,
+            activeAtOutcome,
+            lifetime,
+            countsTowardAccuracy);
+    }
+
+    private bool CountsTowardAccuracy()
+    {
+        return currentAnimal != null && currentAnimal.animalType != AnimalType.Snake;
     }
     
     /// <summary>
@@ -490,6 +534,14 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     /// </summary>
     public void ForceHide()
     {
+        bool wasVisibleUnhit = isVisible && !wasHit && currentAnimal != null;
+        bool waveEnding = PlaytestTelemetry.Instance != null && PlaytestTelemetry.Instance.IsWaveEnding;
+
+        if (wasVisibleUnhit && waveEnding)
+        {
+            LogAnimalOutcome("RoundEnded", CountsTowardAccuracy());
+        }
+
         // Notify spawner if this was a snake
         NotifySnakeHidden();
         
@@ -526,6 +578,12 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         
         // Record the time when animal becomes fully visible (for perfect hit tracking)
         timeWhenFullyVisible = Time.time;
+
+        if (PlaytestTelemetry.Instance != null && PlaytestTelemetry.Instance.IsWaveActive)
+        {
+            telemetrySpawnTime = PlaytestTelemetry.Instance.WaveElapsed;
+            LogSpawnIfNeeded();
+        }
         
         // Wait for animal-specific visible duration (or fallback to default)
         float waitTime = (currentAnimal != null) ? currentAnimal.visibleDuration : visibleDuration;
@@ -620,6 +678,8 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     private void Whack()
     {
         wasHit = true;  // Mark as hit
+
+        LogAnimalOutcome("Hit", CountsTowardAccuracy());
         
         // Check if we're in roguelike mode
         if (RoguelikeManager.Instance != null)
@@ -696,6 +756,11 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         if (wasHit)
         {
             return;  // Animal was hit, don't penalize
+        }
+
+        if (currentAnimal != null && currentAnimal.animalType != AnimalType.Snake)
+        {
+            LogAnimalOutcome("Expired", true);
         }
         
         // Check if we're in roguelike mode
@@ -817,6 +882,13 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     public bool IsActiveOrAnimating()
     {
         return isVisible || isAnimating || whackCoroutine != null;
+    }
+
+    public void GetTelemetryState(out bool unhitVisible, out bool animatingHit, out bool anyVisible)
+    {
+        unhitVisible = isVisible && !wasHit && whackCoroutine == null;
+        animatingHit = whackCoroutine != null;
+        anyVisible = isVisible || isAnimating || whackCoroutine != null;
     }
 }
 

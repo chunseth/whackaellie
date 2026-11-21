@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_PixelRect:
     serializedVersion: 2
-    x: 0
-    y: 66
+    x: 40
+    y: 63
     width: 1635
     height: 1051
   m_ShowMode: 4
@@ -120,7 +120,7 @@ MonoBehaviour:
   m_MinSize: {x: 300, y: 100}
   m_MaxSize: {x: 24288, y: 16192}
   vertical: 0
-  controlID: 190
+  controlID: 17
   draggingID: 0
 --- !u!114 &6
 MonoBehaviour:
@@ -141,8 +141,8 @@ MonoBehaviour:
     y: 0
     width: 425
     height: 995
-  m_MinSize: {x: 101, y: 126}
-  m_MaxSize: {x: 4001, y: 4026}
+  m_MinSize: {x: 100, y: 100}
+  m_MaxSize: {x: 4000, y: 4000}
   m_ActualView: {fileID: 15}
   m_Panes:
   - {fileID: 15}
@@ -172,7 +172,7 @@ MonoBehaviour:
   m_MinSize: {x: 100, y: 100}
   m_MaxSize: {x: 8096, y: 16192}
   vertical: 1
-  controlID: 212
+  controlID: 36
   draggingID: 0
 --- !u!114 &8
 MonoBehaviour:
@@ -212,7 +212,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 1
   m_Script: {fileID: 12006, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: ProjectBrowser
+  m_Name: ConsoleWindow
   m_EditorClassIdentifier: 
   m_Children: []
   m_Position:
@@ -221,15 +221,15 @@ MonoBehaviour:
     y: 791
     width: 782.5
     height: 204
-  m_MinSize: {x: 232, y: 276}
-  m_MaxSize: {x: 10002, y: 10026}
-  m_ActualView: {fileID: 17}
+  m_MinSize: {x: 102, y: 126}
+  m_MaxSize: {x: 4002, y: 4026}
+  m_ActualView: {fileID: 18}
   m_Panes:
   - {fileID: 17}
   - {fileID: 18}
   - {fileID: 12}
-  m_Selected: 0
-  m_LastSelected: 1
+  m_Selected: 1
+  m_LastSelected: 0
 --- !u!114 &10
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -249,8 +249,8 @@ MonoBehaviour:
     y: 0
     width: 427.5
     height: 995
-  m_MinSize: {x: 276, y: 76}
-  m_MaxSize: {x: 4001, y: 4026}
+  m_MinSize: {x: 275, y: 50}
+  m_MaxSize: {x: 4000, y: 4000}
   m_ActualView: {fileID: 19}
   m_Panes:
   - {fileID: 19}
@@ -299,7 +299,7 @@ MonoBehaviour:
     m_CachedPref: -160
     m_ControlHash: 1412526313
     m_PrefName: Preview_InspectorPreview
-  m_LastInspectedObjectInstanceID: 119688
+  m_LastInspectedObjectInstanceID: -1
   m_LastVerticalScrollValue: 0
   m_GlobalObjectId: 
   m_InspectorMode: 0
@@ -344,7 +344,7 @@ MonoBehaviour:
     m_OverlaysVisible: 1
   m_LockTracker:
     m_IsLocked: 0
-  m_LastSelectedObjectID: 91162
+  m_LastSelectedObjectID: 81942
 --- !u!114 &13
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -438,7 +438,7 @@ MonoBehaviour:
     m_TextWithWhitespace: "Game\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 425
+    x: 467
     y: 102
     width: 780.5
     height: 765
@@ -541,8 +541,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Hierarchy\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 0
-    y: 102
+    x: 40
+    y: 99
     width: 424
     height: 969
   m_SerializedDataModeController:
@@ -559,26 +559,26 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 
-      m_LastClickedID: 0
-      m_ExpandedIDs: fa61ffff0c62ffffaa64ffffbe64ffffdc64ffff0a65ffff887cffff9a7cffff087fffff1c7fffff3a7fffff687fffff3a88ffff4c88ffffba8affffce8affffec8affff1a8bfffff893ffff0a94ffffa896ffffbc96ffffda96ffff0897ffff3ca6ffff4ea6ffffeca8ffff00a9ffff1ea9ffff4ca9ffff3eb8ffff50b8ffffb8baffffc4baffffdcbaffff04bbffff6ac7ffff38d1ffffb4d8ffffc6d8ffff58dbffff8edbffffd0dbffff22dcffff84e6ffff96e6ffff3ce9ffff56e9ffff7ce9ffffb2e9fffffefaffff00fbffff02fbffff50b20000d21f01008646010064d2010028d30100f0d50100c6d601007add0100
+      m_SelectedIDs: 26af0100
+      m_LastClickedID: 110374
+      m_ExpandedIDs: c67afeffd87afeff7c7dfeffa67dfeffea8bfefffc8bfeffa68efeffd88efeffb09dfeffc29dfeff62a0feff8ea0feff401cffff621cffff201dffff4421ffff222101005422010088370100ae370100ba370100a0380100e2380100ce390100d4390100903a0100c23a0100f63a0100543b0100703b0100e83b0100163c0100683c01008e3c0100bc3c0100fa3c0100943d0100983d0100b43d0100403e0100643e01009c3e0100b43e0100b83e0100bc3e0100cc3e0100603f0100843f0100983f0100ee3f0100
       m_RenameOverlay:
         m_UserAcceptedRename: 0
-        m_Name: 
-        m_OriginalName: 
+        m_Name: RoguelikeManager
+        m_OriginalName: RoguelikeManager
         m_EditFieldRect:
           serializedVersion: 2
           x: 0
           y: 0
           width: 0
           height: 0
-        m_UserData: 0
+        m_UserData: 98598
         m_IsWaitingForDelay: 0
         m_IsRenaming: 0
-        m_OriginalEventType: 11
+        m_OriginalEventType: 0
         m_IsRenamingFilename: 0
         m_TrimLeadingAndTrailingWhitespace: 0
-        m_ClientGUIView: {fileID: 0}
+        m_ClientGUIView: {fileID: 6}
       m_SearchString: 
     m_ExpandedScenes: []
     m_CurrenRootInstanceID: 0
@@ -607,8 +607,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Scene\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 425
-    y: 102
+    x: 465
+    y: 99
     width: 780.5
     height: 765
   m_SerializedDataModeController:
@@ -1316,7 +1316,7 @@ MonoBehaviour:
     m_TextWithWhitespace: "Project\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 425
+    x: 467
     y: 893
     width: 780.5
     height: 178
@@ -1342,7 +1342,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 1
     m_Folders:
-    - Assets
+    - Assets/Resources
     m_Globs: []
     m_ProductIds: 
     m_AnyWithAssetOrigin: 0
@@ -1352,16 +1352,16 @@ MonoBehaviour:
   m_ViewMode: 1
   m_StartGridSize: 64
   m_LastFolders:
-  - Assets
+  - Assets/Resources
   m_LastFoldersGridSize: -1
   m_LastProjectPath: /Users/sethchun/Documents/WhackAEllie
   m_LockTracker:
     m_IsLocked: 0
   m_FolderTreeState:
     scrollPos: {x: 0, y: 79}
-    m_SelectedIDs: 82bc0000
-    m_LastClickedID: 48258
-    m_ExpandedIDs: 0000000082bc000084bc000086bc000088bc00008abc000000ca9a3bffffff7f
+    m_SelectedIDs: 5afe0000
+    m_LastClickedID: 65114
+    m_ExpandedIDs: 00000000d2ec000000ca9a3bffffff7f
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1390,7 +1390,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 0000000082bc000084bc000086bc000088bc00008abc0000
+    m_ExpandedIDs: 
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1469,8 +1469,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Console\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 425
-    y: 896
+    x: 465
+    y: 890
     width: 780.5
     height: 178
   m_SerializedDataModeController:
@@ -1505,8 +1505,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Inspector\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 1207.5
-    y: 102
+    x: 1247.5
+    y: 99
     width: 426.5
     height: 969
   m_SerializedDataModeController:

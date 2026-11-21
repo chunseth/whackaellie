@@ -33,6 +33,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject comboTextPrefab;
     [SerializeField] private Transform canvasTransform;
 
+    [Header("Audio")]
+    [SerializeField] private AudioClip buttonPressSound;
+    private AudioSource audioSource;
+
     [Header("Game Settings (Fallback)")]
     [SerializeField] private float gameDuration = 60f;
 
@@ -110,6 +114,19 @@ public class GameManager : MonoBehaviour
         if (nextLevelButton != null)
         {
             nextLevelButton.SetActive(false);
+        }
+        
+        // Initialize AudioSource for sound effects
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+            // Configure AudioSource for sound effects
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D sound
         }
     }
     
@@ -259,6 +276,9 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void StartGame()
     {
+        // Play button press sound
+        PlayButtonPressSound();
+        
         isGameActive = true;
         
         // Hide instructions panel
@@ -699,6 +719,17 @@ public class GameManager : MonoBehaviour
     public (float min, float max) GetCurrentSpawnRates()
     {
         return (currentMinSpawnRate, currentMaxSpawnRate);
+    }
+    
+    /// <summary>
+    /// Play button press sound effect
+    /// </summary>
+    private void PlayButtonPressSound()
+    {
+        if (audioSource != null && buttonPressSound != null)
+        {
+            audioSource.PlayOneShot(buttonPressSound);
+        }
     }
 }
 

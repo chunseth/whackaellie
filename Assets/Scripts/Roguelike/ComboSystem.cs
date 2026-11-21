@@ -17,6 +17,13 @@ public class ComboSystem : MonoBehaviour
     private float comboMultiplier = 2.0f;    // Multiplier applied when combo triggers
     private bool hasComboMissShield = false; // If true, miss reduces combo by 1 instead of resetting
     
+    [Header("Audio")]
+    [SerializeField] private AudioClip regularBoinkSound;
+    [SerializeField] private AudioClip combo1BoinkSound;
+    [SerializeField] private AudioClip combo2BoinkSound;
+    [SerializeField] private AudioClip combo3BoinkSound;
+    private AudioSource audioSource;
+    
     // Events
     public event Action<int> OnComboChanged;  // Fires when combo count changes
     
@@ -29,6 +36,20 @@ public class ComboSystem : MonoBehaviour
         else
         {
             Destroy(gameObject);
+            return;
+        }
+        
+        // Get or add AudioSource component for sound effects
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+            // Configure AudioSource for sound effects
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D sound
         }
     }
     
@@ -66,6 +87,9 @@ public class ComboSystem : MonoBehaviour
             
             Debug.Log($"[Combo] TRIGGERED! {accumulatedPoints}pts × {comboMultiplier}x = {totalWithMultiplier}pts (bonus: {bonusPoints}pts)");
             
+            // Play combo completion sounds: combo 1 and 3 boink simultaneously
+            PlayComboCompletionSound();
+            
             OnComboChanged?.Invoke(currentComboCount);
             
             // Reset for next combo
@@ -76,6 +100,9 @@ public class ComboSystem : MonoBehaviour
         }
         else
         {
+            // Still accumulating - play combo build-up sounds
+            PlayComboHitSound(currentComboCount);
+            
             // Still accumulating, just award base points
             OnComboChanged?.Invoke(currentComboCount);
             return (basePoints, 0);
@@ -140,6 +167,61 @@ public class ComboSystem : MonoBehaviour
     public (int currentCount, int requiredCount, int accumulatedPoints) GetComboInfo()
     {
         return (currentComboCount, hitsToTriggerCombo, accumulatedPoints);
+    }
+    
+    /// <summary>
+    /// Play sound effect for combo build-up
+    /// Hit 1 → regular boink, Hit 2 → combo1, Hit 3 → combo2, Hit 4 → combo3
+    /// </summary>
+    private void PlayComboHitSound(int comboCount)
+    {
+        if (audioSource == null) return;
+        
+        AudioClip soundToPlay = null;
+        
+        switch (comboCount)
+        {
+            case 1:
+                soundToPlay = regularBoinkSound;
+                break;
+            case 2:
+                soundToPlay = combo1BoinkSound;
+                break;
+            case 3:
+                soundToPlay = combo2BoinkSound;
+                break;
+            case 4:
+                soundToPlay = combo3BoinkSound;
+                break;
+            default:
+                // For any other count, play regular boink as fallback
+                soundToPlay = regularBoinkSound;
+                break;
+        }
+        
+        if (soundToPlay != null)
+        {
+            audioSource.PlayOneShot(soundToPlay);
+        }
+    }
+    
+    /// <summary>
+    /// Play combo completion sound: combo 1 and 3 boink simultaneously
+    /// </summary>
+    private void PlayComboCompletionSound()
+    {
+        if (audioSource == null) return;
+        
+        // Play combo 1 and combo 3 boinks at the same time
+        if (combo1BoinkSound != null)
+        {
+            audioSource.PlayOneShot(combo1BoinkSound);
+        }
+        
+        if (combo3BoinkSound != null)
+        {
+            audioSource.PlayOneShot(combo3BoinkSound);
+        }
     }
     
 }
