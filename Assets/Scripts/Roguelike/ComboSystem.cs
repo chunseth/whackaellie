@@ -76,7 +76,6 @@ public class ComboSystem : MonoBehaviour
         currentComboCount++;
         accumulatedPoints += basePoints;
         
-        Debug.Log($"[Combo] Hit {currentComboCount}/{hitsToTriggerCombo} - Accumulated: {accumulatedPoints}pts");
         
         // Check if combo threshold reached
         if (currentComboCount >= hitsToTriggerCombo)
@@ -85,7 +84,6 @@ public class ComboSystem : MonoBehaviour
             int totalWithMultiplier = Mathf.RoundToInt(accumulatedPoints * comboMultiplier);
             int bonusPoints = totalWithMultiplier - accumulatedPoints;
             
-            Debug.Log($"[Combo] TRIGGERED! {accumulatedPoints}pts × {comboMultiplier}x = {totalWithMultiplier}pts (bonus: {bonusPoints}pts)");
             
             // Play combo completion sounds: combo 1 and 3 boink simultaneously
             PlayComboCompletionSound();
@@ -201,6 +199,9 @@ public class ComboSystem : MonoBehaviour
         
         if (soundToPlay != null)
         {
+            // Pitch climbs a little with each hit so the build-up toward a combo is audible
+            float progress = hitsToTriggerCombo > 1 ? (comboCount - 1) / (float)(hitsToTriggerCombo - 1) : 0f;
+            audioSource.pitch = 1f + 0.12f * Mathf.Clamp01(progress);
             audioSource.PlayOneShot(soundToPlay);
         }
     }
@@ -211,6 +212,14 @@ public class ComboSystem : MonoBehaviour
     private void PlayComboCompletionSound()
     {
         if (audioSource == null) return;
+        
+        audioSource.pitch = 1.15f;
+        
+        // Let the combo sound cut through the music
+        if (MusicPlayer.Instance != null)
+        {
+            MusicPlayer.Instance.Duck(0.5f, 0.3f);
+        }
         
         // Play combo 1 and combo 3 boinks at the same time
         if (combo1BoinkSound != null)

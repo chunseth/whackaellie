@@ -631,6 +631,79 @@ public class ShopManager : MonoBehaviour
     }
     
     /// <summary>
+    /// A short "before -> after" line for the description panel, plus which upgrades this one locks out.
+    /// </summary>
+    private string GetUpgradePreview(UpgradeType upgradeType)
+    {
+        PlayerUpgrades u = currentUpgrades;
+        if (u == null) return "";
+        
+        int tier = u.GetTierLevel(upgradeType);
+        string change = "";
+        switch (upgradeType)
+        {
+            case UpgradeType.RabbitPoints1:
+                change = $"Rabbit: {u.basePointsPerRabbit} -> {u.basePointsPerRabbit + 1} pts"; break;
+            case UpgradeType.RabbitPoints3:
+                change = $"Rabbit: {u.basePointsPerRabbit} -> {u.basePointsPerRabbit + 3} pts"; break;
+            case UpgradeType.MeerkatPoints1:
+                change = $"Meerkat: {u.basePointsPerMeerkat} -> {u.basePointsPerMeerkat + 1} pts"; break;
+            case UpgradeType.MeerkatPoints3:
+                change = $"Meerkat: {u.basePointsPerMeerkat} -> {u.basePointsPerMeerkat + 3} pts"; break;
+            case UpgradeType.SpawnRate:
+                change = $"Max animals: {u.maxActiveAnimals} -> {u.maxActiveAnimals + 2}"; break;
+            case UpgradeType.RoundLength:
+                change = $"Wave time: {u.waveDuration:0.#}s -> {u.waveDuration + 2f:0.#}s"; break;
+            case UpgradeType.ComboStarter:
+                change = $"Combo: {u.comboHitsToStart} hits -> {u.comboHitsToStart - 1} hits\nGold per combo: {u.goldPerCombo:0.#} -> {u.goldPerCombo - 0.5f:0.#}"; break;
+            case UpgradeType.ComboMultiplier:
+                change = $"Combo multiplier: {u.comboMultiplierIncrement:0.#}x -> {u.comboMultiplierIncrement + 0.5f:0.#}x"; break;
+            case UpgradeType.RabbitToMeerkat:
+                change = $"Rabbits become meerkats: {u.rabbitToMeerkatConversion * 100f:0}% -> {(u.rabbitToMeerkatConversion + 0.15f) * 100f:0}%"; break;
+            case UpgradeType.MeerkatToFox:
+                change = $"Meerkats become foxes: {u.meerkatToFoxConversion * 100f:0}% -> {(u.meerkatToFoxConversion + 0.15f) * 100f:0}%"; break;
+            case UpgradeType.FoxToBadger:
+                change = $"Foxes become badgers: {u.foxToBadgerConversion * 100f:0}% -> {(u.foxToBadgerConversion + 0.15f) * 100f:0}%"; break;
+            case UpgradeType.PerfectHitBonus:
+                change = $"Perfect hit: {u.perfectHitMultiplier:0.#}x -> {u.perfectHitMultiplier + 0.5f:0.#}x"; break;
+            case UpgradeType.CritChance:
+                change = $"Crit chance: {u.critChance * 100f:0}% -> {(u.critChance + 0.05f) * 100f:0}%"; break;
+            case UpgradeType.TimePerCombo:
+            {
+                float next = tier == 0 ? 0.5f : (tier == 1 ? 1f : 2f);
+                change = $"Time per combo: +{u.timeAddedPerCombo:0.#}s -> +{next:0.#}s\nCombo: {u.comboHitsToStart} hits -> {u.comboHitsToStart + 1} hits";
+                break;
+            }
+            case UpgradeType.ComboInterest:
+            {
+                float next = tier == 0 ? 0.5f : (tier == 1 ? 0.75f : 1f);
+                change = $"Multiplier growth per combo: +{u.comboInterestRate:0.##}x -> +{next:0.##}x";
+                break;
+            }
+        }
+        
+        string result = change.Length > 0 ? $"\n\n<size=85%><color=#FFD54A>{change}</color></size>" : "";
+        
+        // Mutually exclusive upgrades are hidden from the shop once locked, so say up front what this one closes off
+        UpgradeDefinition definition = upgradeDatabase != null ? upgradeDatabase.GetUpgrade(upgradeType) : null;
+        if (definition != null && definition.locksOutUpgrades != null && definition.locksOutUpgrades.Length > 0 && tier == 0)
+        {
+            System.Collections.Generic.List<string> names = new System.Collections.Generic.List<string>();
+            foreach (UpgradeType locked in definition.locksOutUpgrades)
+            {
+                if (u.IsUpgradeLocked(locked)) continue;
+                names.Add(GetUpgradeName(locked));
+            }
+            if (names.Count > 0)
+            {
+                result += $"\n<size=80%><color=#FF8A80>Locks out: {string.Join(", ", names)}</color></size>";
+            }
+        }
+        
+        return result;
+    }
+    
+    /// <summary>
     /// Get the upgrade type assigned to a button index
     /// </summary>
     private UpgradeType GetUpgradeTypeForButton(int buttonIndex)
@@ -773,7 +846,7 @@ public class ShopManager : MonoBehaviour
         TextMeshProUGUI upgradeDescriptionText = descriptionPanel.transform.Find("TextBackground/UpgradeDescription")?.GetComponent<TextMeshProUGUI>();
         if (upgradeDescriptionText != null)
         {
-            upgradeDescriptionText.text = GetUpgradeDescription(upgradeType);
+            upgradeDescriptionText.text = GetUpgradeDescription(upgradeType) + GetUpgradePreview(upgradeType);
         }
         else
         {

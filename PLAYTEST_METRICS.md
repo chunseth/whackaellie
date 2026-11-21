@@ -26,9 +26,9 @@ Guide for observing runs and collecting data to tune difficulty, economy, and fe
 | Meerkat | +10 | 1.0s | Mid value |
 | Fox | +15 | **0.7s** | Fast priority target |
 | Badger | +25 | **0.4s** | High-risk skill shot |
-| Snake | **−35** (database) / **−10** (`RoguelikeManager` code) | **2.5s** | Don't tap; escape = no penalty |
+| Snake | **−35** (read from `AnimalDatabase` by `RoguelikeManager`) | **2.5s** | Don't tap; escape = no penalty |
 
-> **Known mismatch:** Snake penalty is −35 in `AnimalDatabase.asset` but hardcoded as −10 in `RoguelikeManager.GetAnimalPoints()`. Log actual score deltas during playtests until this is unified.
+> Snake penalty used to be hardcoded as −10 in code; it now comes from `AnimalDatabase.asset` (−35).
 
 ### Roguelike Loop (`BalatroScene`)
 
@@ -295,7 +295,6 @@ Upgrades should move PPS by roughly **10–25%** per meaningful purchase; shop c
 
 | Issue | What to Watch |
 |-------|---------------|
-| Snake −10 (code) vs −35 (database) | Floating text and actual score change |
 | `RoguelikeBalancer` / docs: 8 rounds, old animal durations | Live game: 5 rounds, inverted durations (badger fast, snake slow) |
 | Fox / Badger in roguelike | Only appear via shop conversions — track when they enter the pool |
 | `ACCURACY_ASSUMPTION = 0.75` in balancer | Replace with measured accuracy from this sheet |
