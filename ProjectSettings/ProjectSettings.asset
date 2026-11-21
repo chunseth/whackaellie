@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 0
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
+  companyName: sethchun
   productName: WhackAEllie
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -164,6 +164,7 @@ PlayerSettings:
   androidMinAspectRatio: 1
   applicationIdentifier:
     Standalone: com.DefaultCompany.2D-URP
+    iPhone: com.sethchun.whack
   buildNumber:
     Standalone: 0
     VisionOS: 0
@@ -239,10 +240,10 @@ PlayerSettings:
   iOSRenderExtraFrameOnPause: 0
   iosCopyPluginsCodeInsteadOfSymlink: 0
   appleDeveloperTeamID: 
-  iOSManualSigningProvisioningProfileID: 
+  iOSManualSigningProvisioningProfileID: 6c3035a2-09ab-421d-8189-137b27c8280e
   tvOSManualSigningProvisioningProfileID: 
   VisionOSManualSigningProvisioningProfileID: 
-  iOSManualSigningProvisioningProfileType: 0
+  iOSManualSigningProvisioningProfileType: 1
   tvOSManualSigningProvisioningProfileType: 0
   VisionOSManualSigningProvisioningProfileType: 0
   appleEnableAutomaticSigning: 0

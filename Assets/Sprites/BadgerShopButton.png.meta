@@ -173,7 +173,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      BadgerShopButton_0: -5831193123582106747
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

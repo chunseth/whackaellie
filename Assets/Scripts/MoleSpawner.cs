@@ -155,9 +155,35 @@ public class MoleSpawner : MonoBehaviour
             
             // Spawn regular animals to reach target
             int animalsToSpawn = targetRegularAnimals - currentRegularAnimals;
+            int activeBeforeBatch = currentRegularAnimals;
+
+            if (animalsToSpawn > 0 && PlaytestTelemetry.Instance != null)
+            {
+                PlaytestTelemetry.Instance.SetSpawnBatchSize(animalsToSpawn);
+            }
+
+            if (animalsToSpawn > 0 && GetAvailableMoles().Count == 0)
+            {
+                PlaytestTelemetry.Instance?.LogSpawnBlocked(
+                    PlaytestTelemetry.Instance.WaveElapsed,
+                    activeBeforeBatch,
+                    maxRegularAnimals,
+                    animalsToSpawn);
+            }
+
             for (int i = 0; i < animalsToSpawn; i++)
             {
-                SpawnRegularAnimal();
+                int activeBefore = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+                bool spawned = SpawnRegularAnimal(activeBefore, maxRegularAnimals, animalsToSpawn);
+                if (!spawned && activeBefore >= maxRegularAnimals)
+                {
+                    PlaytestTelemetry.Instance?.LogSpawnBlocked(
+                        PlaytestTelemetry.Instance.WaveElapsed,
+                        activeBefore,
+                        maxRegularAnimals,
+                        animalsToSpawn - i);
+                    break;
+                }
             }
         }
     }
@@ -176,9 +202,15 @@ public class MoleSpawner : MonoBehaviour
             // Spawn snakes for this event
             int snakesToSpawn = Mathf.Min(snakesPerEvent, maxActiveSnakes - currentActiveSnakes);
             
+            if (snakesToSpawn > 0 && PlaytestTelemetry.Instance != null)
+            {
+                PlaytestTelemetry.Instance.SetSpawnBatchSize(snakesToSpawn);
+            }
+
             for (int i = 0; i < snakesToSpawn; i++)
             {
-                SpawnSnake();
+                int activeBefore = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+                SpawnSnake(activeBefore, GetMaxActiveAllowed());
             }
             
             if (snakesToSpawn > 0)
@@ -191,47 +223,65 @@ public class MoleSpawner : MonoBehaviour
     /// <summary>
     /// Spawns a regular animal (rabbit/meerkat) in a random available hole
     /// </summary>
-    private void SpawnRegularAnimal()
+    private bool SpawnRegularAnimal(int activeBefore, int maxActiveAllowed, int batchSize)
     {
         List<MoleController> availableMoles = GetAvailableMoles();
+        bool blockedByCap = activeBefore >= maxActiveAllowed;
 
         if (availableMoles.Count > 0)
         {
-            // Pick a random available mole
             int randomIndex = Random.Range(0, availableMoles.Count);
             MoleController selectedMole = availableMoles[randomIndex];
-            
-            // Update last spawn time and spawn the mole
+
             lastSpawnTimes[selectedMole] = Time.time;
             selectedMole.PopUp();
+            return true;
         }
+
+        if (batchSize > 0)
+        {
+            PlaytestTelemetry.Instance?.LogSpawnBlocked(
+                PlaytestTelemetry.Instance.WaveElapsed,
+                activeBefore,
+                maxActiveAllowed,
+                batchSize);
+        }
+
+        return false;
     }
-    
+
     /// <summary>
     /// Spawns a snake in a random available hole (snake event system)
     /// </summary>
-    private void SpawnSnake()
+    private void SpawnSnake(int activeBefore, int maxActiveAllowed)
     {
         List<MoleController> availableMoles = GetAvailableMoles();
 
         if (availableMoles.Count > 0)
         {
-            // Pick a random available mole
             int randomIndex = Random.Range(0, availableMoles.Count);
             MoleController selectedMole = availableMoles[randomIndex];
-            
-            // Update last spawn time and force spawn as snake
+
             lastSpawnTimes[selectedMole] = Time.time;
             selectedMole.PopUpSnake();
         }
+        else
+        {
+            PlaytestTelemetry.Instance?.LogSpawnBlocked(
+                PlaytestTelemetry.Instance.WaveElapsed,
+                activeBefore,
+                maxActiveAllowed,
+                1);
+        }
     }
-    
+
     /// <summary>
     /// Spawns a mole in a random available hole (legacy method for other modes)
     /// </summary>
     private void SpawnRandomMole()
     {
-        SpawnRegularAnimal();
+        int activeBefore = currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+        SpawnRegularAnimal(activeBefore, GetMaxActiveAllowed(), 1);
     }
     
     /// <summary>
@@ -510,18 +560,68 @@ public class MoleSpawner : MonoBehaviour
         return available;
     }
 
-    /// <summary>
-    /// Counts the number of currently active or animating moles
-    /// </summary>
-    private int CountActiveMoles()
+    public int GetMaxActiveAllowed()
     {
-        int count = 0;
-        
+        if (configuredMaxActiveAnimals > 0)
+        {
+            return configuredMaxActiveAnimals;
+        }
+
+        if (RoguelikeManager.Instance != null)
+        {
+            var upgrades = RoguelikeManager.Instance.GetPlayerUpgrades();
+            if (upgrades != null)
+            {
+                return upgrades.maxActiveAnimals;
+            }
+        }
+
+        return maxActiveMoles;
+    }
+
+    public int GetActiveRegularCount()
+    {
+        return currentActiveRabbits + currentActiveMeerkats + currentActiveFoxes + currentActiveBadgers;
+    }
+
+    public void GetBoardTelemetryCounts(out int activeUnhit, out int hitAnimating, out int totalVisible)
+    {
+        activeUnhit = 0;
+        hitAnimating = 0;
+        totalVisible = 0;
+
         foreach (MoleController mole in moleControllers)
         {
-            if (mole != null && mole.IsActiveOrAnimating())
+            if (mole == null) continue;
+
+            mole.GetTelemetryState(out bool unhitVisible, out bool animatingHit, out bool anyVisible);
+            if (unhitVisible) activeUnhit++;
+            if (animatingHit) hitAnimating++;
+            if (anyVisible) totalVisible++;
+        }
+    }
+
+    public void NotifyAnimalSpawned(AnimalType type, int activeAfter, int maxActiveAllowed, int activeBefore)
+    {
+        bool blockedByCap = activeBefore >= maxActiveAllowed;
+        PlaytestTelemetry.Instance?.LogSpawn(
+            PlaytestTelemetry.Instance.WaveElapsed,
+            activeBefore,
+            activeAfter,
+            maxActiveAllowed,
+            blockedByCap,
+            type.ToString());
+    }
+
+    public int CountVisibleUnhitAnimals()
+    {
+        int count = 0;
+        foreach (MoleController mole in moleControllers)
+        {
+            if (mole != null)
             {
-                count++;
+                mole.GetTelemetryState(out bool unhitVisible, out _, out _);
+                if (unhitVisible) count++;
             }
         }
 
