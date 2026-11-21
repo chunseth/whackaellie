@@ -13,6 +13,11 @@ public class FloatingComboText : MonoBehaviour
     [SerializeField] private float endScale = 1.5f;
     [SerializeField] private AnimationCurve scaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     
+    [Tooltip("How far the text drifts upward over its lifetime")]
+    [SerializeField] private float riseDistance = 40f;
+    [Tooltip("Pop in with a springy overshoot instead of a plain scale")]
+    [SerializeField] private bool punch = true;
+    
     private TextMeshProUGUI textComponent;
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
@@ -34,6 +39,24 @@ public class FloatingComboText : MonoBehaviour
         {
             originalColor = textComponent.color;
         }
+    }
+    
+    /// <summary>
+    /// Customize the look before calling InitializeFromUI/Initialize.
+    /// sizeMultiplier scales the whole animation (start and end scale).
+    /// </summary>
+    public void SetStyle(Color color, float sizeMultiplier, float duration, float rise)
+    {
+        if (textComponent != null)
+        {
+            textComponent.color = color;
+            textComponent.outlineWidth = 0.22f;
+            textComponent.outlineColor = new Color32(0, 0, 0, 220);
+        }
+        startScale *= sizeMultiplier;
+        endScale *= sizeMultiplier;
+        animationDuration = duration;
+        riseDistance = rise;
     }
     
     /// <summary>
@@ -65,8 +88,7 @@ public class FloatingComboText : MonoBehaviour
             rectTransform.anchoredPosition = new Vector2(randomX, randomY);
             rectTransform.rotation = Quaternion.Euler(0, 0, randomRotation);
             rectTransform.localScale = Vector3.one * startScale;
-            
-            Debug.Log($"[FloatingText] Parented to {sourceRect.name} at offset: ({randomX}, {randomY})");
+
         }
         
         // Start animation
@@ -114,8 +136,7 @@ public class FloatingComboText : MonoBehaviour
                 );
                 
                 rectTransform.anchoredPosition = canvasPos + new Vector2(randomX, randomY);
-                
-                Debug.Log($"[FloatingText] Spawned at screen: {screenPos}, canvas: {canvasPos}, final: {rectTransform.anchoredPosition}");
+
             }
             else if (canvas != null)
             {
@@ -130,8 +151,7 @@ public class FloatingComboText : MonoBehaviour
                 );
                 
                 rectTransform.anchoredPosition = canvasPos + new Vector2(randomX, randomY);
-                
-                Debug.Log($"[FloatingText] Spawned (camera mode) at: {rectTransform.anchoredPosition}");
+
             }
             
             rectTransform.rotation = Quaternion.Euler(0, 0, randomRotation);
@@ -146,37 +166,49 @@ public class FloatingComboText : MonoBehaviour
     }
     
     /// <summary>
-    /// Animate scale and fade
+    /// Animate: pop in (with overshoot), drift upward, then fade out
     /// </summary>
     private IEnumerator AnimateText()
     {
         float elapsedTime = 0f;
+        Vector2 startPosition = rectTransform != null ? rectTransform.anchoredPosition : Vector2.zero;
         
         while (elapsedTime < animationDuration)
         {
             elapsedTime += Time.deltaTime;
-            float t = elapsedTime / animationDuration;
-            float curveValue = scaleCurve.Evaluate(t);
+            float t = Mathf.Clamp01(elapsedTime / animationDuration);
             
-            // Scale up
             if (rectTransform != null)
             {
-                float scale = Mathf.Lerp(startScale, endScale, curveValue);
-                rectTransform.localScale = Vector3.one * scale;
-            }
-            
-            // Fade in then out
-            if (canvasGroup != null)
-            {
-                if (t < 0.3f)
+                float scale;
+                if (punch)
                 {
-                    // Fade in quickly
-                    canvasGroup.alpha = Mathf.Lerp(0, 1, t / 0.3f);
+                    // Springy pop over the first 35% of the animation, then hold
+                    float popT = Mathf.Clamp01(t / 0.35f);
+                    scale = Mathf.LerpUnclamped(startScale, endScale, GameFeel.EaseOutBack(popT));
                 }
                 else
                 {
-                    // Fade out
-                    canvasGroup.alpha = Mathf.Lerp(1, 0, (t - 0.3f) / 0.7f);
+                    scale = Mathf.Lerp(startScale, endScale, scaleCurve.Evaluate(t));
+                }
+                rectTransform.localScale = Vector3.one * scale;
+                rectTransform.anchoredPosition = startPosition + Vector2.up * (riseDistance * GameFeel.EaseOutQuad(t));
+            }
+            
+            // Fade in quickly, hold, then fade out over the last 40%
+            if (canvasGroup != null)
+            {
+                if (t < 0.15f)
+                {
+                    canvasGroup.alpha = t / 0.15f;
+                }
+                else if (t < 0.6f)
+                {
+                    canvasGroup.alpha = 1f;
+                }
+                else
+                {
+                    canvasGroup.alpha = 1f - (t - 0.6f) / 0.4f;
                 }
             }
             
@@ -187,4 +219,3 @@ public class FloatingComboText : MonoBehaviour
         Destroy(gameObject);
     }
 }
-

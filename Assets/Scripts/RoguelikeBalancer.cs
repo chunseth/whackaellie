@@ -52,7 +52,7 @@ public class RoguelikeBalancer : MonoBehaviour
         new AnimalStats { type = AnimalType.Meerkat, basePoints = 10, spawnWeight = 0.8f, visibleDuration = 1.5f, description = "Medium speed, medium value" },
         new AnimalStats { type = AnimalType.Fox, basePoints = 15, spawnWeight = 0.6f, visibleDuration = 1.2f, description = "Quick, good value" },
         new AnimalStats { type = AnimalType.Badger, basePoints = 25, spawnWeight = 0.4f, visibleDuration = 2.5f, description = "Slow, high value" },
-        new AnimalStats { type = AnimalType.Snake, basePoints = -10, spawnWeight = 0.3f, visibleDuration = 1.8f, description = "Penalty, avoid!" }
+        new AnimalStats { type = AnimalType.Snake, basePoints = -35, spawnWeight = 0.3f, visibleDuration = 1.8f, description = "Penalty, avoid!" }
     };
 
     [Header("Combo Tiers (Unlocked After Each Boss)")]

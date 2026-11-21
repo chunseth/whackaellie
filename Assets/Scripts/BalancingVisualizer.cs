@@ -144,7 +144,7 @@ public class BalancingVisualizer : MonoBehaviour
             AnimalType.Meerkat => 10,
             AnimalType.Fox => 15,
             AnimalType.Badger => 25,
-            AnimalType.Snake => -10,
+            AnimalType.Snake => -35,
             _ => 0
         };
     }
@@ -183,7 +183,7 @@ public class BalancingVisualizer : MonoBehaviour
                 int snakes = wave.animalCounts.ContainsKey(AnimalType.Snake) ? wave.animalCounts[AnimalType.Snake] : 0;
                 
                 int totalAnimals = rabbits + meerkats + foxes + badgers + snakes;
-                int rawPoints = (rabbits * 5) + (meerkats * 10) + (foxes * 15) + (badgers * 25) + (snakes * -10);
+                int rawPoints = (rabbits * 5) + (meerkats * 10) + (foxes * 15) + (badgers * 25) + (snakes * -35);
                 
                 csv.AppendLine($"{round},{wave.waveNumber},{waveType},{wave.pointThreshold},{wave.duration},{wave.minSpawnRate},{wave.maxSpawnRate},{rabbits},{meerkats},{foxes},{badgers},{snakes},{totalAnimals},{rawPoints},{wave.comboTier.tierLevel}");
             }

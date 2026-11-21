@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.Collections;
 
-public class MoleController : MonoBehaviour, IPointerClickHandler
+public class MoleController : MonoBehaviour, IPointerDownHandler
 {
     [Header("References")]
     [SerializeField] private RectTransform moleImage;
@@ -33,6 +33,50 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     private float timeWhenFullyVisible = 0f;  // Timestamp when animal finished popping up
     private float telemetrySpawnTime = 0f;
     private bool telemetrySpawnLogged = false;
+
+    // Hits are allowed once the animal is partway out of the hole, not only after it has fully risen
+    [SerializeField] [Range(0f, 1f)] private float hittableFromRiseFraction = 0.4f;
+    private bool isRising = false;
+    private float riseStartTime = 0f;
+    private MoleSpawner cachedSpawner;
+    private Transform cachedCanvasRoot;
+
+    private MoleSpawner Spawner
+    {
+        get
+        {
+            if (cachedSpawner == null)
+            {
+                cachedSpawner = FindObjectOfType<MoleSpawner>();
+            }
+            return cachedSpawner;
+        }
+    }
+
+    private Transform CanvasRoot
+    {
+        get
+        {
+            if (cachedCanvasRoot == null)
+            {
+                Canvas canvas = GetComponentInParent<Canvas>();
+                if (canvas != null) cachedCanvasRoot = canvas.rootCanvas.transform;
+            }
+            return cachedCanvasRoot;
+        }
+    }
+
+    /// <summary>
+    /// True while the animal can be whacked: fully up, sliding down, or far enough into its rise.
+    /// </summary>
+    private bool CanBeHit
+    {
+        get
+        {
+            if (isVisible) return true;
+            return isRising && Time.time >= riseStartTime + animationDuration * hittableFromRiseFraction;
+        }
+    }
 
     private void Start()
     {
@@ -68,6 +112,24 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         if (animalDataArray == null || animalDataArray.Length == 0)
         {
             InitializeDefaultAnimalData();
+        }
+
+        // Decorative images next to this hole (like the front lip drawn over the animal) were catching
+        // taps before they reached this controller. Let taps pass through them.
+        if (transform.parent != null)
+        {
+            if (transform.parent.GetComponent<Canvas>() == null)
+            {
+                foreach (Graphic g in transform.parent.GetComponentsInChildren<Graphic>(true))
+                {
+                    bool belongsToAMole = g.GetComponentInParent<MoleController>(true) != null;
+                    bool isControl = g.GetComponentInParent<Selectable>(true) != null;
+                    if (!belongsToAMole && !isControl)
+                    {
+                        g.raycastTarget = false;
+                    }
+                }
+            }
         }
     }
     
@@ -130,7 +192,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     {
         if (telemetrySpawnLogged || currentAnimal == null) return;
 
-        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        MoleSpawner spawner = Spawner;
         if (spawner == null) return;
 
         int activeAfter = spawner.GetActiveRegularCount();
@@ -149,7 +211,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         float outcomeTime = PlaytestTelemetry.Instance.WaveElapsed;
         float lifetime = telemetrySpawnTime > 0f ? outcomeTime - telemetrySpawnTime : 0f;
 
-        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        MoleSpawner spawner = Spawner;
         int activeAtOutcome = spawner != null ? spawner.CountVisibleUnhitAnimals() : 0;
 
         PlaytestTelemetry.Instance.LogAnimalOutcome(
@@ -237,7 +299,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         }
         
         // Check if snakes are allowed (ask spawner)
-        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        MoleSpawner spawner = Spawner;
         bool canSpawnSnake = spawner != null && spawner.CanSpawnSnake();
         
         // Try to get from database first (with level filtering), then fall back to array
@@ -311,7 +373,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     private void SelectRandomAnimalRoguelike()
     {
         AnimalType selectedType = AnimalType.Rabbit; // Default to rabbit
-        MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+        MoleSpawner spawner = Spawner;
         
         // Check if this is a forced snake spawn from snake event system
         if (forceSnakeSpawn)
@@ -484,7 +546,6 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
             moleImageComponent.sprite = currentAnimal.normalSprite;
         }
         
-        Debug.Log($"[Roguelike] Selected animal: {currentAnimal?.animalName ?? "None"} ({selectedType})");
     }
     
     /// <summary>
@@ -559,60 +620,111 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         
         isVisible = false;
         isAnimating = false;
+        isRising = false;
         wasHit = false;
         
         if (moleImage != null)
         {
             moleImage.anchoredPosition = hiddenPosition;
+            moleImage.localScale = Vector3.one;
+            moleImage.localRotation = Quaternion.identity;
         }
     }
 
     /// <summary>
-    /// Handles the pop up sequence: slide up, wait, slide down
+    /// Handles the pop up sequence: slide up, wait, slide down.
+    /// The slides run inline (not as nested coroutines) so a hit can stop them instantly.
     /// </summary>
     private IEnumerator PopUpSequence()
     {
-        // Slide up
-        yield return StartCoroutine(SlideMole(hiddenPosition, visiblePosition));
+        bool isSnake = currentAnimal != null && currentAnimal.animalType == AnimalType.Snake;
+
+        // Rise with a quick pop and slight overshoot (snakes slither up smoothly instead, so they read differently)
+        isRising = true;
+        isAnimating = true;
+        riseStartTime = Time.time;
+        timeWhenFullyVisible = riseStartTime + animationDuration;
+        float elapsed = 0f;
+        while (elapsed < animationDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / animationDuration);
+            float eased = isSnake ? GameFeel.EaseOutQuad(t) : GameFeel.EaseOutBack(t);
+            if (moleImage != null)
+            {
+                moleImage.anchoredPosition = Vector2.LerpUnclamped(hiddenPosition, visiblePosition, eased);
+            }
+            yield return null;
+        }
+        if (moleImage != null)
+        {
+            moleImage.anchoredPosition = visiblePosition;
+        }
+        isRising = false;
+        isAnimating = false;
         isVisible = true;
-        
-        // Record the time when animal becomes fully visible (for perfect hit tracking)
-        timeWhenFullyVisible = Time.time;
 
         if (PlaytestTelemetry.Instance != null && PlaytestTelemetry.Instance.IsWaveActive)
         {
             telemetrySpawnTime = PlaytestTelemetry.Instance.WaveElapsed;
             LogSpawnIfNeeded();
         }
-        
-        // Wait for animal-specific visible duration (or fallback to default)
+
+        // Wait for animal-specific visible duration (or fallback to default). Snakes sway so they're easy to spot.
         float waitTime = (currentAnimal != null) ? currentAnimal.visibleDuration : visibleDuration;
-        yield return new WaitForSeconds(waitTime);
-        
-        // Slide down if still visible (not whacked)
+        elapsed = 0f;
+        while (elapsed < waitTime)
+        {
+            elapsed += Time.deltaTime;
+            if (isSnake && moleImage != null)
+            {
+                moleImage.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(elapsed * 9f) * 7f);
+            }
+            yield return null;
+        }
+        if (moleImage != null)
+        {
+            moleImage.localRotation = Quaternion.identity;
+        }
+
+        // Slide down if still visible (not whacked) - player can still hit during this animation!
         if (isVisible)
         {
-            // Start sliding down - player can still hit during this animation!
-            yield return StartCoroutine(SlideMole(visiblePosition, hiddenPosition));
-            
+            isAnimating = true;
+            elapsed = 0f;
+            while (elapsed < animationDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / animationDuration);
+                if (moleImage != null)
+                {
+                    moleImage.anchoredPosition = Vector2.Lerp(visiblePosition, hiddenPosition, GameFeel.EaseInQuad(t));
+                }
+                yield return null;
+            }
+            if (moleImage != null)
+            {
+                moleImage.anchoredPosition = hiddenPosition;
+            }
+            isAnimating = false;
+
             // Only NOW check if animal escaped (after slide down completes)
-            // If wasHit is still false, the animal got away
             if (isVisible)
             {
                 OnAnimalEscaped();
             }
-            
+
             isVisible = false;
         }
-        
+
         // Notify spawner when snake is hidden
         NotifySnakeHidden();
-        
+
         popUpCoroutine = null;
     }
 
     /// <summary>
-    /// Slides the mole between two positions with linear interpolation
+    /// Slides the mole between two positions (ease-in, used for going back into the hole)
     /// </summary>
     private IEnumerator SlideMole(Vector2 fromPosition, Vector2 toPosition)
     {
@@ -622,13 +734,13 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         while (elapsedTime < animationDuration)
         {
             elapsedTime += Time.deltaTime;
-            float t = elapsedTime / animationDuration;
-            
+            float t = Mathf.Clamp01(elapsedTime / animationDuration);
+
             if (moleImage != null)
             {
-                moleImage.anchoredPosition = Vector2.Lerp(fromPosition, toPosition, t);
+                moleImage.anchoredPosition = Vector2.Lerp(fromPosition, toPosition, GameFeel.EaseInQuad(t));
             }
-            
+
             yield return null;
         }
 
@@ -636,39 +748,36 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         {
             moleImage.anchoredPosition = toPosition;
         }
-        
+
         isAnimating = false;
     }
 
     /// <summary>
-    /// Handles pointer click events (tapping the mole)
+    /// Handles taps. Uses pointer DOWN (not click) so hits register the instant a finger lands,
+    /// and a finger that slides slightly still counts.
     /// </summary>
-    public void OnPointerClick(PointerEventData eventData)
+    public void OnPointerDown(PointerEventData eventData)
     {
-        // Check roguelike mode first
+        bool gameActive;
         if (RoguelikeManager.Instance != null)
         {
-            Debug.Log($"[Roguelike Click] {gameObject.name} - IsVisible: {isVisible}, Animal: {currentAnimal?.animalName}");
-            
-            // Only allow clicks if visible AND wave is active
-            if (isVisible && RoguelikeManager.Instance.IsWaveActive())
-            {
-                Whack();
-            }
-            else if (isVisible)
-            {
-                Debug.Log("[Roguelike Click] Wave not active, ignoring click");
-            }
-            return;
+            gameActive = RoguelikeManager.Instance.IsWaveActive();
         }
-        
-        // Standard game manager mode
-        Debug.Log($"Click detected on {gameObject.name}! IsVisible: {isVisible}, GameActive: {(GameManager.Instance != null ? GameManager.Instance.IsGameActive() : false)}");
-        
-        // Only respond to clicks when visible and game is active
-        if (isVisible && GameManager.Instance != null && GameManager.Instance.IsGameActive())
+        else
+        {
+            gameActive = GameManager.Instance != null && GameManager.Instance.IsGameActive();
+        }
+
+        if (!gameActive) return;
+
+        if (CanBeHit && !wasHit)
         {
             Whack();
+        }
+        else if (!isVisible && !isRising && whackCoroutine == null)
+        {
+            // Tapped an empty hole - a little dust puff confirms the tap registered
+            GameFeel.Burst(CanvasRoot, transform.position, new Color(0.85f, 0.75f, 0.6f, 0.8f), 6, 220f, 18f, 0.3f);
         }
     }
 
@@ -678,6 +787,14 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     private void Whack()
     {
         wasHit = true;  // Mark as hit
+
+        // If the animal was hit while still rising, log its spawn first so telemetry stays consistent
+        if (isRising && !telemetrySpawnLogged && PlaytestTelemetry.Instance != null && PlaytestTelemetry.Instance.IsWaveActive)
+        {
+            telemetrySpawnTime = PlaytestTelemetry.Instance.WaveElapsed;
+            LogSpawnIfNeeded();
+        }
+        isRising = false;
 
         LogAnimalOutcome("Hit", CountsTowardAccuracy());
         
@@ -689,7 +806,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
             {
                 RectTransform thisRect = GetComponent<RectTransform>();
                 
-                // Check if this was a perfect hit (within 0.4s of becoming visible)
+                // Perfect hit = within 0.4s of becoming fully visible (hits during the rise count as perfect)
                 float timeSinceVisible = Time.time - timeWhenFullyVisible;
                 bool isPerfectHit = timeSinceVisible <= 0.4f;
                 
@@ -731,11 +848,24 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
             }
         }
 
-        // Stop the pop up sequence
+        // Stop the pop up sequence (this also stops any rise/fall in progress)
         if (popUpCoroutine != null)
         {
             StopCoroutine(popUpCoroutine);
             popUpCoroutine = null;
+        }
+        if (moleImage != null)
+        {
+            moleImage.localRotation = Quaternion.identity;
+        }
+
+        // Hit particles, drawn above the hole
+        if (moleImage != null && currentAnimal != null)
+        {
+            bool isSnake = currentAnimal.animalType == AnimalType.Snake;
+            Color burstColor = isSnake ? new Color(0.55f, 0.9f, 0.35f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.95f);
+            int burstCount = isSnake ? 8 : (currentAnimal.animalType == AnimalType.Badger ? 14 : 10);
+            GameFeel.Burst(CanvasRoot, moleImage.position, burstColor, burstCount, 420f, 22f, 0.4f);
         }
 
         // Show hit sprite and slide down
@@ -814,8 +944,24 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
         // Play random hit sound effect for this animal
         PlayHitSound();
         
-        // Brief pause to show hit sprite
-        yield return new WaitForSeconds(hitSpriteDuration);
+        // Squash on impact, then spring back while the hit sprite shows
+        float elapsed = 0f;
+        while (elapsed < hitSpriteDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / hitSpriteDuration);
+            if (moleImage != null)
+            {
+                // 0 -> 0.35: squash in, 0.35 -> 1: spring back
+                float squash = t < 0.35f ? t / 0.35f : 1f - GameFeel.EaseOutQuad((t - 0.35f) / 0.65f);
+                moleImage.localScale = new Vector3(1f + 0.25f * squash, 1f - 0.25f * squash, 1f);
+            }
+            yield return null;
+        }
+        if (moleImage != null)
+        {
+            moleImage.localScale = Vector3.one;
+        }
         
         // Slide down
         yield return StartCoroutine(SlideMole(moleImage.anchoredPosition, hiddenPosition));
@@ -834,7 +980,7 @@ public class MoleController : MonoBehaviour, IPointerClickHandler
     {
         if (currentAnimal != null)
         {
-            MoleSpawner spawner = FindObjectOfType<MoleSpawner>();
+            MoleSpawner spawner = Spawner;
             if (spawner != null)
             {
                 if (currentAnimal.animalType == AnimalType.Snake)

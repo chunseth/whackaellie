@@ -81,6 +81,25 @@ public class RoguelikeManager : MonoBehaviour
     private RoguelikeWaveData currentWaveData;
     
     private bool hasShownMissThisFrame = false;  // Prevent multiple miss texts per frame
+    
+    // Game feel / presentation state
+    private const int DefaultSnakePenalty = -35;
+    private int cachedSnakePenalty = 0;
+    private RectTransform holeGrid;
+    private RectTransform scoreBarFill;
+    private Image scoreBarFillImage;
+    private bool targetReachedThisWave = false;
+    private Color timerBaseColor = Color.white;
+    private Color scoreBaseColor = Color.white;
+    private bool timerColorCached = false;
+    private Coroutine coinSoundsCoroutine;
+    private bool skipCoinAnimation = false;
+    private Coroutine scorePulseCoroutine;
+    
+    private static readonly Color ScoreBarColor = new Color(0.35f, 0.85f, 0.4f, 1f);
+    private static readonly Color ScoreBarDoneColor = new Color(1f, 0.82f, 0.2f, 1f);
+    private const string TutorialDonePrefKey = "WAE_RoguelikeTutorialDone";
+    private const string ShopTipSeenPrefKey = "WAE_ShopTipSeen";
     private int lastCountdownNumber = -1;  // Track which number is currently showing
     private Coroutine countdownAnimationCoroutine;
     
@@ -163,8 +182,105 @@ public class RoguelikeManager : MonoBehaviour
             audioSource.spatialBlend = 0f; // 2D sound
         }
         
+        // Presentation setup (all built at runtime, no scene changes needed)
+        MusicPlayer.Ensure().SetQuiet();
+        CreateScoreBar();
+        if (rewardPanel != null)
+        {
+            PointerDownRelay relay = rewardPanel.GetComponent<PointerDownRelay>();
+            if (relay == null) relay = rewardPanel.AddComponent<PointerDownRelay>();
+            relay.OnDown += () => skipCoinAnimation = true;
+        }
+        
         // Show start panel
         ShowStartPanel();
+    }
+    
+    /// <summary>
+    /// The hole grid (shaken on big hits). Found by walking up from a mole to the canvas.
+    /// </summary>
+    private RectTransform HoleGrid
+    {
+        get
+        {
+            if (holeGrid == null)
+            {
+                MoleController mole = FindObjectOfType<MoleController>();
+                if (mole != null)
+                {
+                    Transform t = mole.transform;
+                    while (t.parent != null && t.parent.GetComponent<Canvas>() == null)
+                    {
+                        t = t.parent;
+                    }
+                    holeGrid = t as RectTransform;
+                }
+            }
+            return holeGrid;
+        }
+    }
+    
+    private TMP_FontAsset UIFont
+    {
+        get { return scoreText != null ? scoreText.font : null; }
+    }
+    
+    /// <summary>
+    /// Thin progress bar under the score text that fills toward the wave target and turns gold when reached.
+    /// </summary>
+    private void CreateScoreBar()
+    {
+        if (scoreText == null || scoreBarFill != null) return;
+        scoreBaseColor = scoreText.color;
+        
+        GameObject background = new GameObject("ScoreBar", typeof(RectTransform), typeof(Image));
+        RectTransform bgRect = background.GetComponent<RectTransform>();
+        bgRect.SetParent(scoreText.rectTransform, false);
+        bgRect.anchorMin = new Vector2(0f, 0f);
+        bgRect.anchorMax = new Vector2(1f, 0f);
+        bgRect.pivot = new Vector2(0.5f, 1f);
+        bgRect.anchoredPosition = new Vector2(0f, -4f);
+        bgRect.sizeDelta = new Vector2(0f, 14f);
+        Image bgImage = background.GetComponent<Image>();
+        bgImage.color = new Color(0f, 0f, 0f, 0.35f);
+        bgImage.raycastTarget = false;
+        
+        GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        scoreBarFill = fill.GetComponent<RectTransform>();
+        scoreBarFill.SetParent(bgRect, false);
+        scoreBarFill.anchorMin = new Vector2(0f, 0f);
+        scoreBarFill.anchorMax = new Vector2(0f, 1f);
+        scoreBarFill.offsetMin = Vector2.zero;
+        scoreBarFill.offsetMax = Vector2.zero;
+        scoreBarFillImage = fill.GetComponent<Image>();
+        scoreBarFillImage.color = ScoreBarColor;
+        scoreBarFillImage.raycastTarget = false;
+    }
+    
+    private void UpdateScoreBar()
+    {
+        if (scoreBarFill == null) return;
+        int target = currentWaveData?.pointTarget ?? 0;
+        float progress = target > 0 ? Mathf.Clamp01(currentScore / (float)target) : 0f;
+        scoreBarFill.anchorMax = new Vector2(progress, 1f);
+        scoreBarFillImage.color = progress >= 1f ? ScoreBarDoneColor : ScoreBarColor;
+    }
+    
+    private IEnumerator PulseScoreText()
+    {
+        if (scoreText == null) yield break;
+        RectTransform rt = scoreText.rectTransform;
+        float elapsed = 0f;
+        const float duration = 0.35f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            rt.localScale = Vector3.one * (1f + 0.25f * Mathf.Sin(t * Mathf.PI));
+            yield return null;
+        }
+        rt.localScale = Vector3.one;
+        scorePulseCoroutine = null;
     }
     
     private void Update()
@@ -307,10 +423,44 @@ public class RoguelikeManager : MonoBehaviour
         
         UpdateUI();
         
+        targetReachedThisWave = false;
+        if (scoreText != null) scoreText.color = scoreBaseColor;
+        
         Debug.Log($"[Roguelike] Starting Round {currentRound} Wave {currentWave} - Target: {currentWaveData.pointTarget}pts in {currentWaveData.duration}s");
+        
+        ShowWaveIntroBanner();
         
         // Show pre-wave animation, then start actual wave
         StartCoroutine(PreWaveAnimation());
+    }
+    
+    /// <summary>
+    /// Shown during the pre-wave preview: the wave's target, or a one-line tip during the first round
+    /// until the player has cleared round 1 once.
+    /// </summary>
+    private void ShowWaveIntroBanner()
+    {
+        string tip = null;
+        bool tutorialDone = PlayerPrefs.GetInt(TutorialDonePrefKey, 0) == 1;
+        if (currentRound == 1 && !tutorialDone)
+        {
+            if (currentWave == 1)
+            {
+                tip = "Tap the animals!";
+            }
+            else if (currentWave == 2)
+            {
+                tip = $"{playerUpgrades.comboHitsToStart} hits in a row = COMBO\n<size=60%>Combos multiply points and earn gold</size>";
+            }
+            else if (currentWave == 3)
+            {
+                tip = $"Don't tap snakes!\n<size=60%>{SnakePenalty} points and your combo breaks</size>";
+            }
+        }
+        
+        string header = $"<size=55%>Round {currentRound} - Wave {currentWave}</size>";
+        string body = tip ?? $"Target: {currentWaveData.pointTarget}";
+        GameFeel.Banner(canvasTransform, UIFont, $"{header}\n{body}", Color.white, 80f, 0.9f);
     }
     
     /// <summary>
@@ -355,6 +505,9 @@ public class RoguelikeManager : MonoBehaviour
             moleSpawner.StartSpawning();
         }
 
+        GameFeel.Banner(canvasTransform, UIFont, "GO!", new Color(0.45f, 1f, 0.5f), 140f, 0.15f);
+        if (MusicPlayer.Instance != null) MusicPlayer.Instance.SetGameplay();
+        
         int maxActive = playerUpgrades != null ? playerUpgrades.maxActiveAnimals : 7;
         PlaytestTelemetry.Instance?.BeginWave(currentRound, currentWave, maxActive);
         
@@ -484,15 +637,12 @@ public class RoguelikeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Called when an animal is hit (called by MoleController)
+    /// Called by MoleController when an animal is hit
     /// </summary>
     public void OnAnimalHit(AnimalType animalType, RectTransform animalRectTransform, bool isPerfectHit = false)
     {
-        Debug.Log($"[Roguelike] OnAnimalHit called! Animal: {animalType}, WaveActive: {isWaveActive}");
-        
         if (!isWaveActive)
         {
-            Debug.LogWarning("[Roguelike] Wave not active, ignoring hit!");
             return;
         }
         
@@ -503,34 +653,19 @@ public class RoguelikeManager : MonoBehaviour
         bool isCriticalHit = false;
         if (playerUpgrades.critChance > 0f && basePoints > 0)
         {
-            float critRoll = Random.value;
-            if (critRoll < playerUpgrades.critChance)
+            if (Random.value < playerUpgrades.critChance)
             {
                 isCriticalHit = true;
                 basePoints = basePoints * 2; // Critical hit: 2x points
-                Debug.Log($"[Roguelike] CRITICAL HIT! {animalType}: {basePoints}pts (2x)");
             }
         }
         
         // Apply perfect hit bonus if applicable (stacks multiplicatively with crit)
+        bool perfectBonusApplied = false;
         if (isPerfectHit && playerUpgrades.perfectHitMultiplier > 1.0f && basePoints > 0)
         {
-            int pointsBeforePerfect = basePoints;
             basePoints = Mathf.RoundToInt(basePoints * playerUpgrades.perfectHitMultiplier);
-            
-            if (isCriticalHit)
-            {
-                float totalMultiplier = 2.0f * playerUpgrades.perfectHitMultiplier;
-                Debug.Log($"[Roguelike] CRITICAL + PERFECT HIT! {animalType}: {basePoints}pts ({totalMultiplier:F1}x total!)");
-            }
-            else
-            {
-                Debug.Log($"[Roguelike] PERFECT HIT! {animalType}: {basePoints}pts ({playerUpgrades.perfectHitMultiplier:F1}x bonus)");
-            }
-        }
-        else if (!isCriticalHit)
-        {
-            Debug.Log($"[Roguelike] Base points for {animalType}: {basePoints}");
+            perfectBonusApplied = true;
         }
         
         // Check if this is a snake (penalty)
@@ -538,19 +673,17 @@ public class RoguelikeManager : MonoBehaviour
         {
             // Snake hit - apply penalty and break combo
             currentScore += basePoints;
-            SpawnFloatingText(basePoints, 0, animalRectTransform);
+            SpawnFloatingText(basePoints, 0, animalRectTransform, false, false);
             
-            // Break combo if we had one
-            var comboInfo = comboSystem.GetComboInfo();
-            if (comboInfo.currentCount > 0)
+            if (comboSystem.GetComboInfo().currentCount > 0)
             {
-                Debug.Log($"[Roguelike] Snake hit! {basePoints}pts penalty & combo broken!");
                 comboSystem.OnAnimalMissed(); // Reset combo
             }
-            else
-            {
-                Debug.Log($"[Roguelike] Snake hit! {basePoints}pts penalty");
-            }
+            
+            // Snake hits should sting
+            Haptics.Play(Haptics.Style.Error);
+            GameFeel.Shake(HoleGrid, 18f, 0.25f);
+            if (MusicPlayer.Instance != null) MusicPlayer.Instance.Duck(0.6f, 0.3f);
         }
         else
         {
@@ -566,7 +699,7 @@ public class RoguelikeManager : MonoBehaviour
             {
                 // Combo triggered! Award gold with fractional accumulation
                 combosThisWave++;
-                int goldAwarded = playerUpgrades.AwardGold(playerUpgrades.goldPerCombo);
+                playerUpgrades.AwardGold(playerUpgrades.goldPerCombo);
                 
                 // Add time to wave if upgrade purchased
                 if (playerUpgrades.timeAddedPerCombo > 0f)
@@ -574,31 +707,36 @@ public class RoguelikeManager : MonoBehaviour
                     timeRemaining += playerUpgrades.timeAddedPerCombo;
                 }
                 
+                // Spawn the combo text now, so it shows the multiplier this combo actually used
+                SpawnFloatingText(points, bonus, animalRectTransform, isCriticalHit, perfectBonusApplied);
+                
                 // Increase combo multiplier for future combos if interest upgrade purchased
                 if (playerUpgrades.comboInterestRate > 0f)
                 {
                     playerUpgrades.comboInterestAccumulated += playerUpgrades.comboInterestRate;
                     comboSystem.Initialize(playerUpgrades); // Refresh combo system with new multiplier
-                    
-                    float currentMultiplier = playerUpgrades.comboMultiplierIncrement + playerUpgrades.comboInterestAccumulated;
-                    Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldAwarded} gold | Multiplier grew to {currentMultiplier:F2}x!");
                 }
-                else if (playerUpgrades.timeAddedPerCombo > 0f)
+                
+                // Make combos feel big
+                Haptics.Play(Haptics.Style.Heavy);
+                GameFeel.HitStop(0.06f);
+                GameFeel.Shake(HoleGrid, 10f, 0.2f);
+                if (animalRectTransform != null)
                 {
-                    Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldAwarded} gold, +{playerUpgrades.timeAddedPerCombo:F1}s time | Total: {currentScore} / {currentWaveData.pointTarget}");
-                }
-                else
-                {
-                    Debug.Log($"[Roguelike] +{points}pts + {bonus} COMBO BONUS = {totalPoints}pts | Combo #{combosThisWave} → +${goldAwarded} gold (${playerUpgrades.goldPerCombo:F1}/combo) | Total: {currentScore} / {currentWaveData.pointTarget}");
+                    GameFeel.Burst(canvasTransform, animalRectTransform.position, new Color(1f, 0.8f, 0.2f, 1f), 18, 650f, 26f, 0.6f);
                 }
             }
             else
             {
-                Debug.Log($"[Roguelike] +{points}pts | Total: {currentScore} / {currentWaveData.pointTarget}");
+                SpawnFloatingText(points, bonus, animalRectTransform, isCriticalHit, perfectBonusApplied);
+                
+                bool bigAnimal = animalType == AnimalType.Badger || animalType == AnimalType.Fox;
+                Haptics.Play(bigAnimal || isCriticalHit ? Haptics.Style.Medium : Haptics.Style.Light);
+                if (animalType == AnimalType.Badger)
+                {
+                    GameFeel.HitStop(0.04f);
+                }
             }
-            
-            // Spawn floating text
-            SpawnFloatingText(points, bonus, animalRectTransform);
         }
         
         // Don't end wave when target reached - let them keep earning points!
@@ -608,33 +746,63 @@ public class RoguelikeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Spawn floating combo text above the hit animal
+    /// Spawn floating text above the hit animal:
+    /// building hits show combo progress ("2/3"), a combo shows the multiplier and bonus, snakes show the penalty.
+    /// Crit and Perfect get their own label.
     /// </summary>
-    private void SpawnFloatingText(int basePoints, int bonusPoints, RectTransform animalRectTransform)
+    private void SpawnFloatingText(int basePoints, int bonusPoints, RectTransform animalRectTransform, bool isCrit, bool isPerfect)
     {
         if (comboTextPrefab == null || canvasTransform == null || animalRectTransform == null)
         {
             return;
         }
         
-        // Determine text to display
         string displayText;
+        Color color;
+        float size;
+        float duration;
+        float rise;
+        
+        string label = "";
+        if (isCrit && isPerfect) label = "<color=#FF5A5A>CRIT</color> <color=#5AE0FF>PERFECT</color>";
+        else if (isCrit) label = "<color=#FF5A5A>CRIT!</color>";
+        else if (isPerfect) label = "<color=#5AE0FF>PERFECT!</color>";
+        
         if (bonusPoints > 0)
         {
-            // Combo triggered - show the multiplier
+            // Combo triggered - show the multiplier and the bonus it earned
             float multiplier = comboSystem.GetCurrentMultiplier();
-            displayText = $"{multiplier:F1}x";
+            displayText = $"<size=55%>COMBO</size>\n{multiplier:0.#}x\n<size=50%>+{basePoints + bonusPoints}</size>";
+            color = new Color(1f, 0.82f, 0.2f);
+            size = 1.6f;
+            duration = 0.9f;
+            rise = 70f;
         }
         else if (basePoints < 0)
         {
-            // Negative points (snake hit) - show penalty
+            // Snake hit - show penalty
             displayText = $"{basePoints}";
+            color = new Color(1f, 0.3f, 0.3f);
+            size = 1.3f;
+            duration = 0.7f;
+            rise = 30f;
         }
         else
         {
-            // Regular hit - show combo count
+            // Building toward a combo - show progress and warm the color as it gets closer
             var comboInfo = comboSystem.GetComboInfo();
-            displayText = $"{comboInfo.currentCount}";
+            int required = Mathf.Max(1, comboInfo.requiredCount);
+            float progress = Mathf.Clamp01(comboInfo.currentCount / (float)required);
+            displayText = $"{comboInfo.currentCount}<size=55%>/{required}</size>";
+            color = Color.Lerp(Color.white, new Color(1f, 0.6f, 0.15f), progress);
+            size = Mathf.Lerp(0.9f, 1.25f, progress);
+            duration = 0.55f;
+            rise = 45f;
+        }
+        
+        if (label.Length > 0)
+        {
+            displayText = $"<size=45%>{label}</size>\n{displayText}";
         }
         
         // Instantiate and initialize
@@ -643,6 +811,7 @@ public class RoguelikeManager : MonoBehaviour
         
         if (floatingText != null)
         {
+            floatingText.SetStyle(color, size, duration, rise);
             floatingText.InitializeFromUI(displayText, animalRectTransform, canvasTransform);
         }
         else
@@ -661,18 +830,20 @@ public class RoguelikeManager : MonoBehaviour
         // If it's a snake escaping, that's GOOD - don't penalize
         if (animalType == AnimalType.Snake)
         {
-            Debug.Log("[Roguelike] Snake escaped - no penalty!");
             return;
         }
         
-        // Check if we should show miss text (only if combo > 0 and not already shown this frame)
+        // Show "Miss!" when a combo breaks; otherwise a gentle grey puff so players still notice the escape
         var comboInfo = comboSystem.GetComboInfo();
-        bool shouldShowMiss = comboInfo.currentCount > 0 && !hasShownMissThisFrame;
-        
-        if (shouldShowMiss)
+        if (comboInfo.currentCount > 0 && !hasShownMissThisFrame)
         {
             SpawnMissText(animalRectTransform);
             hasShownMissThisFrame = true;
+            Haptics.Play(Haptics.Style.Medium);
+        }
+        else if (animalRectTransform != null)
+        {
+            GameFeel.Burst(canvasTransform, animalRectTransform.position, new Color(0.7f, 0.7f, 0.7f, 0.6f), 6, 160f, 16f, 0.35f);
         }
         
         // Break combo (lose accumulated points)
@@ -691,14 +862,12 @@ public class RoguelikeManager : MonoBehaviour
             return;
         }
         
-        Debug.Log($"[Roguelike] Spawning MISS text above {animalRectTransform.name}");
-        
-        // Instantiate and initialize with "Miss!" text
         GameObject floatingTextObj = Instantiate(comboTextPrefab, canvasTransform);
         FloatingComboText floatingText = floatingTextObj.GetComponent<FloatingComboText>();
         
         if (floatingText != null)
         {
+            floatingText.SetStyle(new Color(1f, 0.55f, 0.5f), 0.9f, 0.6f, 20f);
             floatingText.InitializeFromUI("Miss!", animalRectTransform, canvasTransform);
         }
         else
@@ -723,9 +892,30 @@ public class RoguelikeManager : MonoBehaviour
             case AnimalType.Badger:
                 return playerUpgrades.basePointsPerBadger;
             case AnimalType.Snake:
-                return -10; // Penalty for hitting snake
+                return SnakePenalty;
             default:
                 return 5;
+        }
+    }
+    
+    /// <summary>
+    /// Snake penalty comes from AnimalDatabase (currently -35) so code and data can't drift apart again.
+    /// </summary>
+    private int SnakePenalty
+    {
+        get
+        {
+            if (cachedSnakePenalty == 0)
+            {
+                cachedSnakePenalty = DefaultSnakePenalty;
+                AnimalDatabase database = Resources.Load<AnimalDatabase>("AnimalDatabase");
+                AnimalData snake = database != null ? database.GetAnimalByType(AnimalType.Snake) : null;
+                if (snake != null && snake.pointValue < 0)
+                {
+                    cachedSnakePenalty = snake.pointValue;
+                }
+            }
+            return cachedSnakePenalty;
         }
     }
     
@@ -761,8 +951,16 @@ public class RoguelikeManager : MonoBehaviour
             PlaytestTelemetry.Instance?.EndRound(true);
         }
         
+        if (MusicPlayer.Instance != null) MusicPlayer.Instance.SetQuiet();
+        UpdateTimerUI(); // clears the red "urgent" timer
+        
         if (success)
         {
+            if (currentRound == 1 && currentWave == 3)
+            {
+                PlayerPrefs.SetInt(TutorialDonePrefKey, 1);
+            }
+            
             Debug.Log($"[Roguelike] Wave {currentWave} complete! Score: {currentScore}/{currentWaveData.pointTarget}");
             
             // Calculate total gold earned this wave (gold was awarded per combo during wave)
@@ -805,7 +1003,9 @@ public class RoguelikeManager : MonoBehaviour
         // Play coin glimmer sound for each gold earned and update display progressively
         if (goldEarned > 0)
         {
-            StartCoroutine(PlayCoinGlimmerSounds(goldEarned, combosCompleted));
+            skipCoinAnimation = false;
+            if (coinSoundsCoroutine != null) StopCoroutine(coinSoundsCoroutine);
+            coinSoundsCoroutine = StartCoroutine(PlayCoinGlimmerSounds(goldEarned, combosCompleted));
         }
         else
         {
@@ -822,6 +1022,13 @@ public class RoguelikeManager : MonoBehaviour
     /// </summary>
     public void ContinueToShop()
     {
+        // Don't let the coin count-up keep playing over the shop
+        if (coinSoundsCoroutine != null)
+        {
+            StopCoroutine(coinSoundsCoroutine);
+            coinSoundsCoroutine = null;
+        }
+        
         if (rewardPanel != null)
         {
             rewardPanel.SetActive(false);
@@ -880,6 +1087,12 @@ public class RoguelikeManager : MonoBehaviour
         }
         
         Debug.Log($"[Roguelike] Shop opened! Gold: ${playerUpgrades.currentGold}");
+        
+        if (PlayerPrefs.GetInt(ShopTipSeenPrefKey, 0) == 0)
+        {
+            PlayerPrefs.SetInt(ShopTipSeenPrefKey, 1);
+            GameFeel.Banner(canvasTransform, UIFont, "Spend combo gold on upgrades\n<size=60%>Tap one to see what it does</size>", ScoreBarDoneColor, 70f, 2.2f, 300f);
+        }
         
         // Manually refresh shop to ensure UI is updated
         ShopManager shopManager = FindObjectOfType<ShopManager>();
@@ -977,7 +1190,9 @@ public class RoguelikeManager : MonoBehaviour
             }
             else
             {
-                gameOverMessageText.text = $"Game Over\n\nReached: Round {currentRound} Wave {currentWave}";
+                int target = currentWaveData?.pointTarget ?? 0;
+                int shortBy = Mathf.Max(0, target - currentScore);
+                gameOverMessageText.text = $"Game Over\n\n{currentScore} / {target}\n<size=70%>{shortBy} points short</size>\n\nReached: Round {currentRound} Wave {currentWave}";
             }
         }
     }
@@ -990,18 +1205,20 @@ public class RoguelikeManager : MonoBehaviour
         if (scoreText != null)
         {
             int target = currentWaveData?.pointTarget ?? 0;
+            bool reached = currentScore >= target && target > 0;
             
-            // Show if target reached
-            if (currentScore >= target && target > 0)
-            {
-                scoreText.text = $"Score: {currentScore} / {target}";
-            }
-            else
-            {
-                scoreText.text = $"Score: {currentScore} / {target}";
-            }
+            scoreText.text = $"Score: {currentScore} / {target}";
+            scoreText.color = reached ? ScoreBarDoneColor : scoreBaseColor;
             
-            Debug.Log($"[Roguelike UI] Updated score text: {scoreText.text}");
+            // Celebrate the moment the target is reached (once per wave)
+            if (reached && !targetReachedThisWave && isWaveActive)
+            {
+                targetReachedThisWave = true;
+                if (scorePulseCoroutine != null) StopCoroutine(scorePulseCoroutine);
+                scorePulseCoroutine = StartCoroutine(PulseScoreText());
+                GameFeel.Banner(canvasTransform, UIFont, "TARGET HIT!\n<size=45%>Combos still earn gold</size>", ScoreBarDoneColor, 90f, 0.7f, 250f);
+                Haptics.Play(Haptics.Style.Medium);
+            }
         }
         else
         {
@@ -1028,9 +1245,22 @@ public class RoguelikeManager : MonoBehaviour
     {
         if (timerText != null)
         {
+            if (!timerColorCached)
+            {
+                timerBaseColor = timerText.color;
+                timerColorCached = true;
+            }
+            
             int seconds = Mathf.CeilToInt(Mathf.Max(0, timeRemaining));
             timerText.text = $"Time: {seconds}s";
+            
+            // Last 5 seconds: timer turns red and the music speeds up a little
+            bool urgent = isWaveActive && timeRemaining <= 5f && timeRemaining > 0f;
+            timerText.color = urgent ? new Color(1f, 0.3f, 0.25f) : timerBaseColor;
+            if (MusicPlayer.Instance != null) MusicPlayer.Instance.SetUrgent(urgent);
         }
+        
+        UpdateScoreBar();
     }
     
     /// <summary>
@@ -1197,6 +1427,7 @@ public class RoguelikeManager : MonoBehaviour
         {
             isPaused = true;
             Time.timeScale = 0f;
+            if (MusicPlayer.Instance != null) MusicPlayer.Instance.SetQuiet();
             
             // Show pause panel
             if (pausePanel != null)
@@ -1305,6 +1536,7 @@ public class RoguelikeManager : MonoBehaviour
             
             isPaused = false;
             Time.timeScale = 1f;
+            if (MusicPlayer.Instance != null && isWaveActive) MusicPlayer.Instance.SetGameplay();
             
             // Hide pause panel
             if (pausePanel != null)
@@ -1354,6 +1586,21 @@ public class RoguelikeManager : MonoBehaviour
         // Display one $ symbol per sound and increment the gold count
         for (int i = 0; i < goldEarned; i++)
         {
+            // Tapping the reward panel jumps straight to the total
+            if (skipCoinAnimation)
+            {
+                if (rewardGoldText != null)
+                {
+                    rewardGoldText.text = $"Combos: {combosCompleted}\nGold Earned: ${goldEarned}";
+                }
+                if (rewardGoldSymbolsText != null)
+                {
+                    rewardGoldSymbolsText.text = new string('$', goldEarned);
+                }
+                audioSource.PlayOneShot(coinGlimmerSound);
+                break;
+            }
+            
             // Play the glimmer sound
             audioSource.PlayOneShot(coinGlimmerSound);
             
@@ -1376,6 +1623,7 @@ public class RoguelikeManager : MonoBehaviour
             // Using 0.1 seconds between sounds - can be adjusted for better feel
             yield return new WaitForSeconds(0.1f);
         }
+        coinSoundsCoroutine = null;
     }
 
     private void EnsurePlaytestTelemetry()
